@@ -81,6 +81,23 @@ function downloadSingleQr(roomNumber: string, businessId: string, qrCodeUrl?: st
   };
 }
 
+const MaleAvatar = () => (
+  <svg viewBox="0 0 128 128" className="w-full h-full text-blue-600 rounded-full" fill="currentColor">
+    <circle cx="64" cy="64" r="64" fill="#dbeafe" />
+    <path d="M64 74a17 17 0 1 0 0-34 17 17 0 0 0 0 34z" fill="#1e3a8a" />
+    <path d="M102 110a4 4 0 0 0-3.6-2.2C89.5 98.4 77.2 92 64 92s-25.5 6.4-34.4 15.8a4 4 0 0 0-3.6 2.2c-.4.8-.1 1.8.6 2.3A62.8 62.8 0 0 0 64 128a62.8 62.8 0 0 0 37.4-15.7c.7-.5 1-1.5.6-2.3z" fill="#1e40af" />
+  </svg>
+);
+
+const FemaleAvatar = () => (
+  <svg viewBox="0 0 128 128" className="w-full h-full text-pink-600 rounded-full" fill="currentColor">
+    <circle cx="64" cy="64" r="64" fill="#fce7f3" />
+    <path d="M64 74a17 17 0 1 0 0-34 17 17 0 0 0 0 34z" fill="#9d174d" />
+    <path d="M64 30c-13.8 0-25 11.2-25 25v12c0 1.7 1.3 3 3 3h44c1.7 0 3-1.3 3-3V55c0-13.8-11.2-25-25-25z" fill="#831843" opacity="0.15" />
+    <path d="M102 110a4 4 0 0 0-3.6-2.2C89.5 98.4 77.2 92 64 92s-25.5 6.4-34.4 15.8a4 4 0 0 0-3.6 2.2c-.4.8-.1 1.8.6 2.3A62.8 62.8 0 0 0 64 128a62.8 62.8 0 0 0 37.4-15.7c.7-.5 1-1.5.6-2.3z" fill="#db2777" />
+  </svg>
+);
+
 export default function RoomsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
 
@@ -94,6 +111,15 @@ export default function RoomsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [floorFilter, typeFilter, statusFilter, searchQuery]);
 
   // Modals Visibility
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
@@ -354,6 +380,7 @@ export default function RoomsPage() {
         guestPhone1: guestPhone1.trim(),
         guestPhone2: guestPhone2.trim() ? guestPhone2.trim() : null,
         guestEmail: guestEmail.trim() ? guestEmail.trim() : null,
+        guestGender: headGender,
       });
 
       await roomService.checkInRoom(selectedBusinessId, showCheckInModal.id, primaryGuestLog);
@@ -557,178 +584,244 @@ export default function RoomsPage() {
           <p className="text-xs text-slate-450 mt-1">Configure layout parameters above to start cataloging rooms.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {filteredRooms.map((room) => {
-            
-            let borderStyle = "border-slate-100 hover:border-slate-200";
-            let roomNumColor = "text-slate-850";
-            let statusPill = "";
-            let footerBlock = null;
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredRooms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((room) => {
+              
+              let borderStyle = "";
+              let cardBg = "";
+              let roomNumColor = "";
+              let statusPill = "";
+              let footerBlock = null;
 
-            if (room.status === "available") {
-              borderStyle = "border-emerald-100 hover:border-emerald-250 bg-emerald-50/5";
-              roomNumColor = "text-emerald-600";
-              statusPill = "bg-emerald-50 text-emerald-600 border border-emerald-100";
-              footerBlock = (
-                <div className="flex items-center gap-3.5 p-3.5 bg-emerald-50/40 rounded-xl mt-4">
-                  <Key className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-bold text-emerald-800">Available</h4>
-                    <span className="text-[9px] text-emerald-600 block mt-0.5 font-medium">Ready for check-in</span>
-                  </div>
-                </div>
-              );
-            } 
-            else if (room.status === "occupied") {
-              borderStyle = "border-rose-100 hover:border-rose-250 bg-rose-50/5";
-              roomNumColor = "text-rose-600";
-              statusPill = "bg-rose-50 text-rose-600 border border-rose-100";
-              footerBlock = (
-                <div className="flex items-center gap-3 p-3 bg-rose-50/40 rounded-xl mt-4">
-                  <div className="w-8 h-8 rounded-full bg-rose-100 overflow-hidden border border-rose-200 shrink-0 flex items-center justify-center">
-                    <img 
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=128" 
-                      alt="Guest avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-[10px] font-bold text-rose-800 truncate">{room.guestName || "Guest Occupied"}</h4>
-                    <span className="text-[9px] text-rose-600 block mt-0.5 truncate font-medium">
-                      Check-in: {room.checkInTime ? room.checkInTime.split("T")[0] : "N/A"}
-                    </span>
-                  </div>
-                </div>
-              );
-            } 
-            else if (room.status === "near-checkout") {
-              borderStyle = "border-amber-100 hover:border-amber-250 bg-amber-50/5";
-              roomNumColor = "text-amber-600";
-              statusPill = "bg-amber-50 text-amber-600 border border-amber-100";
-              footerBlock = (
-                <div className="flex items-center gap-3.5 p-3.5 bg-amber-50/40 rounded-xl mt-4">
-                  <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-bold text-amber-800">Check-out Soon</h4>
-                    <span className="text-[9px] text-amber-600 block mt-0.5 font-medium">
-                      {room.checkOutTime ? room.checkOutTime.split("T")[0] : "Today"}
-                    </span>
-                  </div>
-                </div>
-              );
-            } 
-            else if (room.status === "cleaning") {
-              borderStyle = "border-blue-150 hover:border-blue-250 bg-blue-50/5";
-              roomNumColor = "text-blue-600";
-              statusPill = "bg-blue-50 text-blue-600 border border-blue-100";
-              footerBlock = (
-                <div className="flex flex-col gap-2 mt-4">
-                  <div className="flex items-center gap-3.5 p-3.5 bg-blue-50/40 rounded-xl">
-                    <Paintbrush className="w-5 h-5 text-blue-500 shrink-0" />
+              const statusLabels: Record<RoomStatus, string> = {
+                available: "Available",
+                occupied: "Occupied",
+                "near-checkout": "Near Checkout",
+                cleaning: "Cleaning",
+                maintenance: "Maintenance"
+              };
+
+              if (room.status === "available") {
+                borderStyle = "border-[#d1f2e0] hover:border-[#a3e6c2]";
+                cardBg = "bg-[#f8fdfa]";
+                roomNumColor = "text-[#10b981]";
+                statusPill = "bg-[#ecfdf5] text-[#10b981] border border-transparent";
+                footerBlock = (
+                  <div className="flex items-center gap-3 p-3.5 bg-[#e6f7ed] border border-[#d1f2e0]/30 rounded-2xl mt-4">
+                    <Key className="w-5 h-5 text-[#10b981] shrink-0" />
                     <div>
-                      <h4 className="text-[10px] font-bold text-blue-800">Under Cleaning</h4>
-                      <span className="text-[9px] text-blue-600 block mt-0.5 font-medium font-sans">Please wait</span>
+                      <h4 className="text-[11px] font-bold text-[#065f46] leading-none">Available</h4>
+                      <span className="text-[9.5px] text-[#047857] block mt-1 font-medium font-sans">Ready for check-in</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleQuickStatusChange(room.id, "available");
-                    }}
-                    className="w-full h-8 bg-blue-650 hover:bg-blue-700 text-white font-bold rounded-lg text-[9px] uppercase tracking-wide transition-colors"
-                  >
-                    Clean Complete
-                  </button>
-                </div>
-              );
-            } 
-            else if (room.status === "maintenance") {
-              borderStyle = "border-slate-200 hover:border-slate-300 bg-slate-50/5";
-              roomNumColor = "text-slate-600";
-              statusPill = "bg-slate-100 text-slate-600 border border-slate-200";
-              footerBlock = (
-                <div className="flex items-center gap-3.5 p-3.5 bg-slate-100/60 rounded-xl mt-4">
-                  <Wrench className="w-5 h-5 text-slate-500 shrink-0" />
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-800">Maintenance</h4>
-                    <span className="text-[9px] text-slate-600 block mt-0.5 font-medium">Not available</span>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={room.id}
-                onClick={() => handleCardClick(room)}
-                className={`bg-white border rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col justify-between relative group ${borderStyle}`}
-              >
+                );
+              } 
+              else if (room.status === "occupied") {
+                borderStyle = "border-[#ffe0e0] hover:border-[#ffc0c0]";
+                cardBg = "bg-[#fff8f8]";
+                roomNumColor = "text-[#f43f5e]";
+                statusPill = "bg-[#fff1f2] text-[#f43f5e] border border-transparent";
                 
-                {/* Float Card Controls (Edit / Delete Room Icons) */}
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button
-                    onClick={(e) => handleEditRoomTrigger(e, room)}
-                    className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all"
-                    title="Edit Room"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteRoomTrigger(e, room)}
-                    className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
-                    title="Delete Room"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                const isFemale = room.guestGender === "Female";
 
-                <div>
-                  <div className="flex justify-between items-center pr-16">
-                    <span className={`text-2.5xl font-extrabold ${roomNumColor}`}>{room.roomNumber}</span>
+                footerBlock = (
+                  <div className="flex items-center gap-3 p-3 bg-[#ffe4e6] border border-[#ffe0e0]/30 rounded-2xl mt-4">
+                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center">
+                      {isFemale ? <FemaleAvatar /> : <MaleAvatar />}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-[11px] font-bold text-[#9f1239] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
+                      <span className="text-[9.5px] text-[#be123c] block mt-1 truncate font-medium font-sans">
+                        Check-in: {room.checkInTime ? formatDateTime(room.checkInTime).split(" at")[0] : "N/A"}
+                      </span>
+                    </div>
                   </div>
+                );
+              } 
+              else if (room.status === "near-checkout") {
+                borderStyle = "border-[#fef3c7] hover:border-[#fde68a]";
+                cardBg = "bg-[#fffbf2]";
+                roomNumColor = "text-[#d97706]";
+                statusPill = "bg-[#fffbeb] text-[#d97706] border border-transparent";
+                footerBlock = (
+                  <div className="flex items-center gap-3 p-3.5 bg-[#fef3c7] border border-[#fde68a]/30 rounded-2xl mt-4">
+                    <Clock className="w-5 h-5 text-[#d97706] shrink-0" />
+                    <div>
+                      <h4 className="text-[11px] font-bold text-[#92400e] leading-none">Check-out Today</h4>
+                      <span className="text-[9.5px] text-[#b45309] block mt-1 font-medium font-sans">
+                        {room.checkOutTime ? formatDateTime(room.checkOutTime).split(" at")[0] : "Today"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              } 
+              else if (room.status === "cleaning") {
+                borderStyle = "border-[#dbeafe] hover:border-[#bfdbfe]";
+                cardBg = "bg-[#f8faff]";
+                roomNumColor = "text-[#2563eb]";
+                statusPill = "bg-[#eff6ff] text-[#2563eb] border border-transparent";
+                footerBlock = (
+                  <div className="flex flex-col gap-2 mt-4">
+                    <div className="flex items-center gap-3 p-3.5 bg-[#dbeafe] border border-[#bfdbfe]/30 rounded-2xl">
+                      <Paintbrush className="w-5 h-5 text-[#2563eb] shrink-0" />
+                      <div>
+                        <h4 className="text-[11px] font-bold text-[#1e40af] leading-none">Under Cleaning</h4>
+                        <span className="text-[9.5px] text-[#1d4ed8] block mt-1 font-medium font-sans">Please wait</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuickStatusChange(room.id, "available");
+                      }}
+                      className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm"
+                    >
+                      Clean Complete
+                    </button>
+                  </div>
+                );
+              } 
+              else if (room.status === "maintenance") {
+                borderStyle = "border-[#e2e8f0] hover:border-[#cbd5e1]";
+                cardBg = "bg-[#f8fafc]";
+                roomNumColor = "text-[#475569]";
+                statusPill = "bg-[#f1f5f9] text-[#475569] border border-transparent";
+                footerBlock = (
+                  <div className="flex items-center gap-3 p-3.5 bg-[#e2e8f0] border border-[#cbd5e1]/30 rounded-2xl mt-4">
+                    <Wrench className="w-5 h-5 text-[#475569] shrink-0" />
+                    <div>
+                      <h4 className="text-[11px] font-bold text-[#334155] leading-none">Maintenance</h4>
+                      <span className="text-[9.5px] text-[#475569] block mt-1 font-medium font-sans">Not available</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => handleCardClick(room)}
+                  className={`border rounded-3xl p-6 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col justify-between relative group ${cardBg} ${borderStyle}`}
+                >
                   
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mt-1">
-                    <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>{room.type} (Floor {room.floor})</span>
+                  {/* Float Card Controls (Edit / Delete Room Icons) */}
+                  <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button
+                      onClick={(e) => handleEditRoomTrigger(e, room)}
+                      className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all"
+                      title="Edit Room"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteRoomTrigger(e, room)}
+                      className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
+                      title="Delete Room"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  
-                  <div className="flex items-center justify-between mt-2.5">
-                    <span className="text-[10px] text-slate-400 font-bold">
-                      ₹{room.pricePerNight.toLocaleString()} <span className="font-medium text-[9px]">/ night</span>
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusPill}`}>
-                      {room.status === "near-checkout" ? "Soon Out" : room.status}
-                    </span>
+
+                  <div>
+                    <div className="flex justify-between items-center pr-16">
+                      <span className={`text-3xl font-extrabold tracking-tight ${roomNumColor}`}>{room.roomNumber}</span>
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusPill}`}>
+                        {statusLabels[room.status]}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-450 mt-1.5 font-sans">
+                      <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span>{room.type} • ₹{room.pricePerNight.toLocaleString()}</span>
+                    </div>
                   </div>
+
+                  {footerBlock}
+
+                  {/* QR Code Action Footer */}
+                  <div className="border-t border-slate-100/70 mt-5 pt-3.5 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewQrRoom(room);
+                      }}
+                      className="hover:text-blue-650 transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-blue-500" /> View QR
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadSingleQr(room.roomNumber, selectedBusinessId, room.qrCodeUrl);
+                      }}
+                      className="hover:text-blue-650 transition-colors flex items-center gap-1"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-400" /> Download QR
+                    </button>
+                  </div>
+
                 </div>
+              );
+            })}
+          </div>
 
-                {footerBlock}
+          {/* Pagination Footer block */}
+          {filteredRooms.length > itemsPerPage && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-slate-100 mt-6">
+              <span className="text-xs font-bold text-slate-450 uppercase tracking-wide">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredRooms.length)} to{" "}
+                {Math.min(currentPage * itemsPerPage, filteredRooms.length)} of {filteredRooms.length} rooms
+              </span>
 
-                {/* QR Code Action Footer */}
-                <div className="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-[11px] font-bold text-slate-500">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setViewQrRoom(room);
-                    }}
-                    className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500" /> View QR
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadSingleQr(room.roomNumber, selectedBusinessId, room.qrCodeUrl);
-                    }}
-                    className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-400" /> Download QR
-                  </button>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
+                >
+                  &lt;
+                </button>
 
+                {(() => {
+                  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+                  const pages = [];
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (totalPages <= 5 || i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
+                            currentPage === i
+                              ? "bg-blue-600 text-white shadow-md shadow-blue-650/10"
+                              : "border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    } else if (pages[pages.length - 1]?.key !== "ellipsis-" + i) {
+                      pages.push(
+                        <span key={"ellipsis-" + i} className="px-1 text-xs text-slate-400 font-extrabold select-none">
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+                  return pages;
+                })()}
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.ceil(filteredRooms.length / itemsPerPage)))}
+                  disabled={currentPage === Math.ceil(filteredRooms.length / itemsPerPage)}
+                  className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
+                >
+                  &gt;
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1189,7 +1282,7 @@ export default function RoomsPage() {
             </div>
 
             {/* Form body */}
-            <form onSubmit={handleCheckInSubmit} className="flex-1 max-w-6xl w-full mx-auto p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <form onSubmit={handleCheckInSubmit} className="flex-1 max-w-[1440px] w-full mx-auto p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
               
               {/* Left Column: Guest Primary Info & Schedule */}
               <div className="lg:col-span-7 space-y-6">
@@ -1536,7 +1629,7 @@ export default function RoomsPage() {
             </div>
 
             {/* Split panel details view */}
-            <div className="flex-1 max-w-6xl w-full mx-auto p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="flex-1 max-w-[1440px] w-full mx-auto p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
               
               {/* Left Column: Timestamps & Contact Details */}
               <div className="lg:col-span-7 space-y-6">

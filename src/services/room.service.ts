@@ -476,6 +476,7 @@ export const roomService = {
         rooms[idx].checkInTime = checkInData.checkInTime;
         rooms[idx].checkOutTime = checkInData.checkOutTime;
         rooms[idx].additionalMembers = checkInData.additionalMembers;
+        rooms[idx].guestGender = checkInData.additionalMembers[0]?.gender || "Male";
         demoDb.setRooms(rooms);
 
         // Update dashboard
@@ -511,7 +512,8 @@ export const roomService = {
         guestName: checkInData.guestName,
         checkInTime: checkInData.checkInTime,
         checkOutTime: checkInData.checkOutTime,
-        additionalMembers: checkInData.additionalMembers
+        additionalMembers: checkInData.additionalMembers,
+        guestGender: checkInData.additionalMembers[0]?.gender || "Male"
       });
 
       // Update occupancy dashboard counts

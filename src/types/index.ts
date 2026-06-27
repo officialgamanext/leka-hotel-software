@@ -52,6 +52,7 @@ export interface Room {
   lastCleaned?: string;
   notes?: string;
   qrCodeUrl?: string | null;
+  guestGender?: string | null;
 }
 
 export interface Guest {
