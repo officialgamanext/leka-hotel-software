@@ -3,235 +3,310 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { businessService } from "@/services/business.service";
-import { demoDb } from "@/services/demoDb";
-import { HotelSettings } from "@/types";
-import { motion } from "framer-motion";
-import { 
-  Settings, Clock, Landmark, RefreshCcw, Save, 
-  Loader2, Check, ShieldAlert, Sparkles, Building
+import { Business } from "@/types";
+import {
+  Building2, Phone, MapPin, Globe, User, Calendar,
+  ShieldCheck, Loader2, Percent, ToggleLeft, ToggleRight,
+  CheckCircle2, Clock, CreditCard
 } from "lucide-react";
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] text-slate-450 font-bold uppercase tracking-widest">{label}</span>
+      <span className="text-xs font-extrabold text-slate-800">{value || "—"}</span>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
 
-  // Settings States
-  const [currency, setCurrency] = useState("USD");
-  const [taxRate, setTaxRate] = useState(10);
-  const [checkInTime, setCheckInTime] = useState("14:00");
-  const [checkOutTime, setCheckOutTime] = useState("11:00");
-  const [hotelName, setHotelName] = useState("");
-  
+  const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
-  // Load current settings
+  // GST states
+  const [gstEnabled, setGstEnabled] = useState(false);
+  const [gstRate, setGstRate] = useState<number>(18);
+  const [savingGst, setSavingGst] = useState(false);
+  const [gstSaved, setGstSaved] = useState(false);
+
   useEffect(() => {
-    if (!selectedBusinessId) return;
-
-    async function loadSettings() {
+    async function load() {
+      if (!selectedBusinessId) return;
       setLoading(true);
       try {
         const biz = await businessService.getBusiness(selectedBusinessId);
         if (biz) {
-          setHotelName(biz.name);
-          setCurrency(biz.settings.currency);
-          setTaxRate(biz.settings.taxRate);
-          setCheckInTime(biz.settings.checkInTime);
-          setCheckOutTime(biz.settings.checkOutTime);
+          setBusiness(biz);
+          setGstEnabled(biz.settings?.gstEnabled ?? false);
+          setGstRate(biz.settings?.gstRate ?? 18);
         }
       } catch (err) {
-        console.error("Failed to load settings:", err);
+        console.error("Failed to load business:", err);
       } finally {
         setLoading(false);
       }
     }
-
-    loadSettings();
+    load();
   }, [selectedBusinessId]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setSavedSuccess(false);
-
+  const handleSaveGst = async () => {
+    if (!selectedBusinessId) return;
+    setSavingGst(true);
     try {
-      await businessService.updateBusinessSettings(selectedBusinessId, {
-        currency,
-        taxRate: Number(taxRate),
-        checkInTime,
-        checkOutTime,
-      });
-
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      await businessService.saveGstSettings(selectedBusinessId, gstEnabled, gstEnabled ? gstRate : 0);
+      setGstSaved(true);
+      setTimeout(() => setGstSaved(false), 3000);
     } catch (err) {
-      console.error(err);
-      alert("Failed to save settings.");
+      console.error("Failed to save GST settings:", err);
+      alert("Failed to save GST settings. Please try again.");
     } finally {
-      setSaving(false);
+      setSavingGst(false);
     }
   };
 
-  const handleResetDemo = async () => {
-    if (!confirm("Are you sure you want to reset all demo rooms, bookings, and billing history to defaults? This will clear browser changes.")) return;
+  const subStatusColor = business?.subscriptionStatus === "active"
+    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+    : "bg-rose-50 text-rose-700 border-rose-200";
 
-    setResetting(true);
-    try {
-      demoDb.resetAll();
-      // Delay for loader realism
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      window.location.reload();
-    } catch (err) {
-      console.error(err);
-      setResetting(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">System Settings</h1>
-        <p className="text-slate-400 text-sm mt-1">Configure hotel workspace defaults, timezone limits, and system parameters</p>
+    <div className="p-6 sm:p-10 space-y-8 max-w-5xl mx-auto font-sans">
+
+      {/* Page Header */}
+      <div className="border-b border-slate-100 pb-5">
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">Settings</h1>
+        <p className="text-slate-500 text-xs mt-1.5 font-semibold">Manage your hotel configuration and billing preferences.</p>
       </div>
 
-      {loading ? (
-        <div className="h-[250px] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+      {/* ─── Card 1: Business Information (View Only) ─── */}
+      <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
+        
+        {/* Card Header */}
+        <div className="flex items-center gap-3 px-7 py-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+            <Building2 className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-900">Business Information</h2>
+            <p className="text-[10px] text-slate-450 font-bold">View-only · Contact GamaNext to update details</p>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          
-          {/* Main settings form */}
-          <form onSubmit={handleSave} className="bg-slate-900/40 border border-slate-850 p-6 rounded-2xl shadow-lg space-y-6">
-            
-            <div className="flex items-center gap-2 text-sm font-bold text-cyan-400 uppercase tracking-wide border-b border-slate-850/50 pb-3">
-              <Building className="w-4 h-4" /> Hotel Details
+
+        {/* Business Details Grid */}
+        <div className="p-7 space-y-6">
+
+          {/* Name + Status Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+            <div>
+              <span className="text-[9px] text-slate-450 font-bold uppercase tracking-widest block">Hotel / Business Name</span>
+              <h3 className="text-xl font-black text-slate-900 mt-0.5">{business?.name || "—"}</h3>
             </div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${subStatusColor}`}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {business?.subscriptionStatus === "active" ? "Active Subscription" : "Inactive"}
+            </span>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Hotel name (view only or update depending on setup) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Hotel Workspace Name</label>
-                <input
-                  type="text"
-                  disabled
-                  value={hotelName}
-                  className="w-full bg-slate-950/40 border border-slate-850 text-slate-450 px-4 py-2.5 rounded-lg text-sm cursor-not-allowed outline-none"
-                />
-                <span className="text-[10px] text-slate-500">Workspace name is configured in the Selector Wizard.</span>
+          {/* Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <User className="w-4 h-4" />
               </div>
-
-              {/* Currency */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Currency Denomination</label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 px-4 py-2.5 rounded-lg text-sm focus:border-cyan-500 outline-none cursor-pointer"
-                >
-                  <option value="USD">USD ($) - United States Dollar</option>
-                  <option value="EUR">EUR (€) - Euro</option>
-                  <option value="GBP">GBP (£) - British Pound</option>
-                  <option value="INR">INR (₹) - Indian Rupee</option>
-                  <option value="AED">AED (د.إ) - UAE Dirham</option>
-                </select>
-              </div>
-
+              <InfoRow label="Admin / Owner Name" value={business?.adminName} />
             </div>
-
-            <div className="flex items-center gap-2 text-sm font-bold text-cyan-400 uppercase tracking-wide border-b border-slate-850/50 pt-4 pb-3">
-              <Clock className="w-4 h-4" /> Hospitality Rules
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Phone className="w-4 h-4" />
+              </div>
+              <InfoRow label="Mobile Number" value={business?.mobileNumber} />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* Check in time */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Standard Check-In</label>
-                <input
-                  type="time"
-                  required
-                  value={checkInTime}
-                  onChange={(e) => setCheckInTime(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 px-4 py-2.5 rounded-lg text-sm focus:border-cyan-500 outline-none"
-                />
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Globe className="w-4 h-4" />
               </div>
-
-              {/* Check out time */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Standard Check-Out</label>
-                <input
-                  type="time"
-                  required
-                  value={checkOutTime}
-                  onChange={(e) => setCheckOutTime(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 px-4 py-2.5 rounded-lg text-sm focus:border-cyan-500 outline-none"
-                />
-              </div>
-
-              {/* Tax rate */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Taxation Rate (%)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={40}
-                  required
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 px-4 py-2.5 rounded-lg text-sm focus:border-cyan-500 outline-none"
-                />
-              </div>
-
+              <InfoRow label="Domain / Category" value={business?.domain} />
             </div>
-
-            {/* Save operations */}
-            <div className="flex items-center justify-between border-t border-slate-850 pt-6">
-              <div className="flex items-center gap-2">
-                {savedSuccess && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-xs text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/15 py-1 px-3 rounded-lg"
-                  >
-                    <Check className="w-3.5 h-3.5" /> Workspace configurations updated successfully.
-                  </motion.span>
-                )}
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <MapPin className="w-4 h-4" />
               </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-10 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-5 rounded-lg text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/15 transition-all"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Settings</>}
-              </button>
+              <InfoRow label="Location" value={business?.location} />
             </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <InfoRow label="Registered On" value={business?.createdAt ? new Date(business.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : undefined} />
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <InfoRow
+                label="Subscription Plan"
+                value={business?.subscriptionPlan ? business.subscriptionPlan.charAt(0).toUpperCase() + business.subscriptionPlan.slice(1) : undefined}
+              />
+            </div>
+          </div>
 
-          </form>
-
-          {/* Demo Reset Panel */}
-          <div className="bg-rose-500/5 border border-rose-500/10 p-6 rounded-2xl shadow-lg space-y-4">
-            <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2">
-              <ShieldAlert className="w-4.5 h-4.5" /> Demo System Workspace Reset
-            </h3>
-            <p className="text-xs text-slate-400 max-w-xl">
-              Are you developing or demonstrating the platform? If you've modified rooms, bookings, or revenue, you can reset the entire workspace back to defaults. This clears the local browser state.
-            </p>
-            <button
-              onClick={handleResetDemo}
-              disabled={resetting}
-              className="h-9 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 text-rose-400 text-xs font-bold px-4 rounded-lg flex items-center gap-2 transition-all"
-            >
-              {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><RefreshCcw className="w-3.5 h-3.5" /> Reset Demo Environment</>}
-            </button>
+          {/* Check-in / Check-out Times */}
+          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
+              <Clock className="w-5 h-5 text-blue-500 shrink-0" />
+              <div>
+                <span className="text-[9px] text-slate-450 font-bold uppercase tracking-wider block">Default Check-in</span>
+                <span className="text-sm font-extrabold text-slate-900">{business?.settings?.checkInTime || "14:00"}</span>
+              </div>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
+              <Clock className="w-5 h-5 text-rose-500 shrink-0" />
+              <div>
+                <span className="text-[9px] text-slate-450 font-bold uppercase tracking-wider block">Default Check-out</span>
+                <span className="text-sm font-extrabold text-slate-900">{business?.settings?.checkOutTime || "11:00"}</span>
+              </div>
+            </div>
           </div>
 
         </div>
-      )}
+      </div>
+
+      {/* ─── Card 2: GST Settings ─── */}
+      <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
+        
+        {/* Card Header */}
+        <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+              <Percent className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">GST / Tax Settings</h2>
+              <p className="text-[10px] text-slate-450 font-bold">Apply GST on guest invoices during checkout</p>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <button
+            type="button"
+            onClick={() => setGstEnabled((prev) => !prev)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
+              gstEnabled
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-slate-50 border-slate-200 text-slate-500"
+            }`}
+          >
+            {gstEnabled ? (
+              <ToggleRight className="w-5 h-5 text-emerald-600" />
+            ) : (
+              <ToggleLeft className="w-5 h-5 text-slate-400" />
+            )}
+            {gstEnabled ? "GST Enabled" : "GST Disabled"}
+          </button>
+        </div>
+
+        <div className="p-7 space-y-5">
+
+          {!gstEnabled ? (
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 border-dashed p-5 rounded-2xl text-slate-450">
+              <Percent className="w-6 h-6 shrink-0 text-slate-350" />
+              <div>
+                <p className="text-xs font-bold text-slate-600">GST is currently disabled</p>
+                <p className="text-[10px] font-medium text-slate-450 mt-0.5">Toggle the switch above to enable GST billing. Once enabled, set your GST rate below and save.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5 animate-fade-in">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  GST Percentage *
+                </label>
+                <div className="flex items-center gap-3 max-w-xs">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={gstRate}
+                      onChange={(e) => setGstRate(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-3 rounded-xl text-sm font-extrabold outline-none transition-all text-center"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 font-bold text-sm pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                  {/* Quick preset buttons */}
+                  {[5, 12, 18, 28].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setGstRate(preset)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        gstRate === preset
+                          ? "bg-blue-600 border-blue-600 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600"
+                      }`}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Standard GST slabs: 5%, 12%, 18%, 28%. Select a preset or enter a custom rate.
+                </p>
+              </div>
+
+              {/* Preview */}
+              <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl space-y-1.5">
+                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider block">Bill Preview</span>
+                <div className="text-xs font-semibold space-y-1 text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Room Charge (example ₹2,000):</span>
+                    <span className="font-bold">₹2,000</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>GST ({gstRate}%):</span>
+                    <span className="font-bold">₹{(2000 * gstRate / 100).toFixed(0)}</span>
+                  </div>
+                  <div className="flex justify-between font-extrabold text-slate-900 border-t border-blue-200 pt-1 mt-1">
+                    <span>Total:</span>
+                    <span className="text-blue-600">₹{(2000 + 2000 * gstRate / 100).toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Save Button */}
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={handleSaveGst}
+              disabled={savingGst}
+              className="h-10 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm active:scale-[0.99]"
+            >
+              {savingGst ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              Save GST Settings
+            </button>
+            {gstSaved && (
+              <span className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold">
+                <CheckCircle2 className="w-4 h-4" /> Saved successfully!
+              </span>
+            )}
+          </div>
+
+        </div>
+      </div>
 
     </div>
   );

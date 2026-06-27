@@ -137,8 +137,35 @@ export const businessService = {
     }
 
     const docRef = doc(db, "businesses", businessId);
+    await updateDoc(docRef, { "settings": settings });
+  },
+
+  /**
+   * Save GST toggle and rate to business settings.
+   */
+  async saveGstSettings(
+    businessId: string,
+    gstEnabled: boolean,
+    gstRate: number
+  ): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const list = demoDb.getBusinesses();
+      const idx = list.findIndex((b) => b.id === businessId);
+      if (idx !== -1) {
+        list[idx].settings = {
+          ...list[idx].settings,
+          gstEnabled,
+          gstRate
+        };
+        demoDb.setBusinesses(list);
+      }
+      return;
+    }
+
+    const docRef = doc(db, "businesses", businessId);
     await updateDoc(docRef, {
-      "settings": settings
+      "settings.gstEnabled": gstEnabled,
+      "settings.gstRate": gstRate
     });
   },
 

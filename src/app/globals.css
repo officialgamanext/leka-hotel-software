@@ -58,3 +58,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0.8;
 }
+
+/* Force pointer cursors on all interactive elements globally */
+button,
+a,
+select,
+input[type="submit"],
+input[type="button"],
+input[type="file"],
+input[type="checkbox"],
+input[type="radio"],
+.cursor-pointer,
+[role="button"] {
+  cursor: pointer !important;
+}

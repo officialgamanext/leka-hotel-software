@@ -30,6 +30,8 @@ export interface HotelSettings {
   checkInTime: string;
   checkOutTime: string;
   taxRate: number;
+  gstEnabled?: boolean;
+  gstRate?: number;
 }
 
 export type RoomStatus = "available" | "occupied" | "near-checkout" | "cleaning" | "maintenance";
@@ -102,6 +104,9 @@ export interface Invoice {
   total: number;
   status: "unpaid" | "paid" | "partially-paid" | "refunded";
   createdAt: string;
+  roomId?: string | null;
+  roomNumber?: string | null;
+  paymentMethod?: string | null;
 }
 
 export interface DashboardSummary {

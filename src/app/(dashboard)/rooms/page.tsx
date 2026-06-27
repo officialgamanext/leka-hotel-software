@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { roomService } from "@/services/room.service";
+import { reportService } from "@/services/report.service";
 import { Room, RoomStatus } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -116,6 +117,9 @@ export default function RoomsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
+  // Checkout Payment Method State
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "UPI" | "Card" | "">("");
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -129,6 +133,11 @@ export default function RoomsPage() {
   const [showCheckInModal, setShowCheckInModal] = useState<Room | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<Room | null>(null);
   const [viewQrRoom, setViewQrRoom] = useState<Room | null>(null);
+
+  // Reset payment method when details modal is shown
+  useEffect(() => {
+    setPaymentMethod("");
+  }, [showDetailModal]);
 
   // Add Floor State
   const [newFloorNumber, setNewFloorNumber] = useState<number>(1);
@@ -403,17 +412,48 @@ export default function RoomsPage() {
   };
 
   // Check Out Submit
-  const handleCheckOut = async (roomId: string) => {
-    if (!confirm("Confirm checkout? Room status will transition to cleaning.")) return;
+  const handleCheckOut = async (room: Room, amount: number, method: string) => {
+    if (!confirm(`Confirm check-out for Room ${room.roomNumber}? Total Amount: ₹${amount.toLocaleString()} via ${method}`)) return;
     try {
-      // Clear phone and email on checkout
-      await roomService.editRoom(selectedBusinessId, roomId, {
-        guestPhone1: null,
-        guestPhone2: null,
-        guestEmail: null
+      const checkOutDateStr = new Date().toISOString().split("T")[0];
+      const checkInDate = new Date(room.checkInTime || new Date());
+      const checkOutDate = new Date();
+      const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
+      const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+      const items = [
+        {
+          description: `${room.type} (Room ${room.roomNumber}) Stay - ${nights} Nights`,
+          amount: room.pricePerNight,
+          quantity: nights
+        }
+      ];
+
+      // Compile and write invoice record to Firebase
+      await reportService.createInvoice(selectedBusinessId, {
+        bookingId: `checkout-${room.id}-${Date.now()}`,
+        guestId: room.guestId || `guest-${Date.now()}`,
+        guestName: room.guestName || "Walk-in Guest",
+        invoiceDate: checkOutDateStr,
+        items,
+        status: "paid",
+        roomId: room.id,
+        roomNumber: room.roomNumber,
+        paymentMethod: method
       });
 
-      await roomService.checkOutRoom(selectedBusinessId, roomId);
+      // Clear guest details on checkout
+      await roomService.editRoom(selectedBusinessId, room.id, {
+        guestPhone1: null,
+        guestPhone2: null,
+        guestEmail: null,
+        guestGender: null
+      });
+
+      // Transition room back to available immediately
+      await roomService.checkOutRoom(selectedBusinessId, room.id);
+      
+      // Close details modal
       setShowDetailModal(null);
     } catch (err) {
       console.error("Checkout failed:", err);
@@ -1698,7 +1738,7 @@ export default function RoomsPage() {
                       <div>
                         <span className="text-[9px] text-slate-450 block uppercase tracking-wide">Room Category & Base Rate</span>
                         <span className="text-slate-800 font-bold text-sm block mt-0.5">
-                          {showDetailModal.type} (₹{showDetailModal.pricePerNight.toLocaleString()} / night)
+                          {showDetailModal.type} (₹{showDetailModal.pricePerNight.toLocaleString()} / day)
                         </span>
                       </div>
                     </div>
@@ -1792,23 +1832,76 @@ export default function RoomsPage() {
                   )}
                 </div>
 
-                {/* Sticky Action Footer */}
-                <div className="flex gap-4 border-t border-slate-100 pt-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowDetailModal(null)}
-                    className="w-1/2 h-10 border border-slate-200 hover:bg-slate-50 text-slate-650 font-bold rounded-xl text-xs transition-colors"
-                  >
-                    Close Log
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckOut(showDetailModal.id)}
-                    className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99]"
-                  >
-                    Check Out Room
-                  </button>
-                </div>
+                {/* Billing Summary & Payment Selector */}
+                {(() => {
+                  const checkInDate = new Date(showDetailModal.checkInTime || new Date());
+                  const checkOutDate = new Date();
+                  const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
+                  const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                  const totalCost = nights * showDetailModal.pricePerNight;
+
+                  return (
+                    <div className="space-y-4 border-t border-slate-100 pt-4 mt-4">
+                      
+                      {/* Price Details */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
+                        <div className="flex justify-between text-xs text-slate-500 font-semibold">
+                          <span>Room Cost ({nights} Day{nights > 1 ? "s" : ""}):</span>
+                          <span className="text-slate-800 font-bold">₹{showDetailModal.pricePerNight.toLocaleString()} × {nights}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500 font-semibold border-b border-slate-200/60 pb-2">
+                          <span>Taxes (Included):</span>
+                          <span className="text-slate-800 font-bold">₹0</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-slate-800 font-extrabold pt-1">
+                          <span>Total Amount:</span>
+                          <span className="text-blue-600 text-base">₹{totalCost.toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Payment Method Selector */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider block">Select Payment Mode *</span>
+                        <div className="grid grid-cols-3 gap-2">
+                          {["Cash", "UPI", "Card"].map((method) => (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => setPaymentMethod(method as any)}
+                              className={`h-9 font-bold text-xs rounded-xl border transition-all active:scale-[0.97] ${
+                                paymentMethod === method
+                                  ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20"
+                                  : "bg-white border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                              }`}
+                            >
+                              {method}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Sticky Action Footer */}
+                      <div className="flex gap-4 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDetailModal(null)}
+                          className="w-1/2 h-10 border border-slate-200 hover:bg-slate-50 text-slate-650 font-bold rounded-xl text-xs transition-colors"
+                        >
+                          Close Log
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!paymentMethod}
+                          onClick={() => handleCheckOut(showDetailModal, totalCost, paymentMethod)}
+                          className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99] flex items-center justify-center gap-1.5"
+                        >
+                          Check Out Room
+                        </button>
+                      </div>
+
+                    </div>
+                  );
+                })()}
 
               </div>
 
