@@ -10,7 +10,7 @@ import {
   Hotel, LayoutDashboard, BedDouble, CalendarDays, 
   Users, BarChart3, Settings, LogOut, ChevronDown, 
   Bell, ChevronLeft, ChevronRight, Loader2, DollarSign,
-  Briefcase, ShieldAlert
+  Briefcase, ShieldAlert, HelpCircle
 } from "lucide-react";
 import Link from "next/link";
 
@@ -88,17 +88,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  // Horizontal Menu Items matching mock image
+  // Horizontal Menu Items matching specifications
   const menuItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Bookings", href: "/bookings", icon: CalendarDays },
-    { label: "Guests", href: "/guests", icon: Users },
     { label: "Rooms", href: "/rooms", icon: BedDouble },
-    { label: "Billing", href: "/reports", icon: DollarSign }, 
-    { label: "Reports", href: "/reports", icon: BarChart3 },
-    { label: "Services", href: "/rooms", icon: Bell },
-    { label: "Staff", href: "/settings", icon: Users },
+    { label: "Payments", href: "/reports", icon: DollarSign }, 
+    { label: "Requests", href: "/bookings", icon: CalendarDays },
+    { label: "Guests", href: "/guests", icon: Users },
     { label: "Settings", href: "/settings", icon: Settings },
+    { label: "Support", href: "/settings", icon: HelpCircle },
   ];
 
   if (!selectedBusinessId || loading) {

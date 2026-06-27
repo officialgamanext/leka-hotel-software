@@ -71,11 +71,28 @@ export const roomService = {
    * Add a new room.
    */
   async createRoom(businessId: string, roomData: Omit<Room, "id">): Promise<Room> {
+    // Generate QR Code once and upload to ImageKit
+    let qrCodeUrl: string | null = null;
+    try {
+      const res = await fetch("/api/upload-qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomNumber: roomData.roomNumber, businessId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        qrCodeUrl = data.url;
+      }
+    } catch (err) {
+      console.error("Failed to generate/upload QR Code during room creation:", err);
+    }
+
     if (!isFirebaseConfigured) {
       const rooms = demoDb.getRooms();
       const newRoom: Room = {
         ...roomData,
         id: `demo-room-${Math.random().toString(36).substring(2, 9)}`,
+        qrCodeUrl,
       };
       rooms.push(newRoom);
       rooms.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
@@ -106,7 +123,7 @@ export const roomService = {
     const roomsRef = collection(db, `businesses/${businessId}/rooms`);
     const newRoomDoc = doc(roomsRef);
     const roomId = newRoomDoc.id;
-    const room: Room = { ...roomData, id: roomId };
+    const room: Room = { ...roomData, id: roomId, qrCodeUrl };
 
     const dashboardSummaryRef = doc(db, `businesses/${businessId}/dashboard/summary`);
 
@@ -137,6 +154,23 @@ export const roomService = {
    * Edit an existing room.
    */
   async editRoom(businessId: string, roomId: string, updatedData: Partial<Room>): Promise<void> {
+    // If the room number is edited, regenerate QR and upload to ImageKit
+    if (updatedData.roomNumber) {
+      try {
+        const res = await fetch("/api/upload-qr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomNumber: updatedData.roomNumber, businessId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          updatedData.qrCodeUrl = data.url;
+        }
+      } catch (err) {
+        console.error("Failed to update QR Code during room edit:", err);
+      }
+    }
+
     if (!isFirebaseConfigured) {
       const rooms = demoDb.getRooms();
       const idx = rooms.findIndex((r) => r.id === roomId);

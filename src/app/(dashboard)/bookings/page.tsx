@@ -2,486 +2,578 @@
 
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import { bookingService } from "@/services/booking.service";
+import { requestService } from "@/services/request.service";
 import { roomService } from "@/services/room.service";
-import { guestService } from "@/services/guest.service";
-import { Booking, BookingStatus, Room } from "@/types";
+import { ServiceType, ServiceRequest } from "@/services/demoDb";
+import { Room } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  CalendarDays, Plus, Search, ChevronRight, ChevronLeft, 
-  Check, ArrowRight, UserPlus, Loader2, Sparkles, X, Filter
+  BellRing, Plus, Loader2, Sparkles, X, Filter, 
+  Trash2, Check, Clock, Play, Layers, ChevronDown, ShieldAlert
 } from "lucide-react";
 
-export default function BookingsPage() {
+// Helper to format timestamps nicely
+function formatDateTime(dateTimeStr: string): string {
+  if (!dateTimeStr) return "";
+  try {
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return dateTimeStr;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    let hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minStr = minutes < 10 ? "0" + minutes : minutes;
+    return `${month} ${day}, ${year} ${hours}:${minStr} ${ampm}`;
+  } catch {
+    return dateTimeStr;
+  }
+}
+
+export default function RequestsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
 
   // Data State
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [services, setServices] = useState<ServiceType[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Pagination & Filters
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | undefined>(undefined);
-  const [pageSize] = useState(6); // Set small for visual pagination testing
-  const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors] = useState<Record<number, any>>({ 1: null });
 
-  // Booking Form State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [guestName, setGuestName] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [checkOutDate, setCheckOutDate] = useState("");
-  const [guestsCount, setGuestsCount] = useState(1);
-  const [totalPrice, setTotalPrice] = useState(150);
-  const [submitting, setSubmitting] = useState(false);
+  // Layout Tab
+  const [activeTab, setActiveTab] = useState<"requests" | "services">("requests");
 
-  // Available Rooms for booking dropdown
-  const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
+  // Modals Visibility
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [showAddRequestModal, setShowAddRequestModal] = useState(false);
 
-  // Fetch Bookings with Pagination
-  useEffect(() => {
+  // Add Service Form
+  const [newServiceName, setNewServiceName] = useState("");
+  const [submittingService, setSubmittingService] = useState(false);
+
+  // Add Request Form
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState("");
+  const [selectedServiceName, setSelectedServiceName] = useState("");
+  const [requestIssue, setRequestIssue] = useState("");
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  // Filter Queue State
+  const [queueFilter, setQueueFilter] = useState<string>("all");
+
+  const loadData = async () => {
     if (!selectedBusinessId) return;
-    loadBookings();
-  }, [selectedBusinessId, currentPage, statusFilter]);
-
-  // Load available rooms when opening add modal
-  useEffect(() => {
-    if (!selectedBusinessId || !showAddModal) return;
-    async function loadRooms() {
-      const list = await roomService.getRooms(selectedBusinessId);
-      setAvailableRooms(list.filter((r) => r.status === "available"));
-    }
-    loadRooms();
-  }, [selectedBusinessId, showAddModal]);
-
-  const loadBookings = async () => {
-    setLoading(true);
     try {
-      const cursor = cursors[currentPage] || null;
-      const result = await bookingService.getBookingsPaginated(
-        selectedBusinessId,
-        pageSize,
-        cursor,
-        statusFilter
-      );
-      
-      setBookings(result.bookings);
-      
-      // Store cursor for next page if available
-      if (result.lastVisibleDoc !== null) {
-        setCursors((prev) => ({
-          ...prev,
-          [currentPage + 1]: result.lastVisibleDoc,
-        }));
+      const sList = await requestService.getServices(selectedBusinessId);
+      setServices(sList);
+      if (sList.length > 0) {
+        setSelectedServiceName(sList[0].name);
+      }
+
+      const rList = await roomService.getRooms(selectedBusinessId);
+      setRooms(rList);
+      if (rList.length > 0) {
+        setSelectedRoomNumber(rList[0].roomNumber);
       }
     } catch (err) {
-      console.error("Error loading bookings:", err);
-    } finally {
+      console.error("Failed to load request metadata:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedBusinessId) return;
+
+    loadData();
+    setLoading(true);
+
+    const unsubscribe = requestService.subscribeRequests(selectedBusinessId, (updatedRequests) => {
+      setRequests(updatedRequests);
       setLoading(false);
-    }
-  };
+    });
 
-  const handleNextPage = () => {
-    if (cursors[currentPage + 1] !== undefined) {
-      setCurrentPage((prev) => prev + 1);
-    }
-  };
+    return () => unsubscribe();
+  }, [selectedBusinessId]);
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-    }
-  };
+  // Create Service Type Category
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServiceName.trim()) return;
 
-  const handleFilterChange = (status: string) => {
-    setStatusFilter(status === "all" ? undefined : (status as BookingStatus));
-    setCurrentPage(1);
-    setCursors({ 1: null });
-  };
-
-  const handleStatusChange = async (bookingId: string, status: BookingStatus) => {
+    setSubmittingService(true);
     try {
-      await bookingService.updateBookingStatus(selectedBusinessId, bookingId, status);
-      // Reload current page
-      loadBookings();
+      await requestService.addService(selectedBusinessId, newServiceName.trim());
+      await loadData();
+      setNewServiceName("");
+      setShowAddServiceModal(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to update booking status.");
-    }
-  };
-
-  const handleCreateBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!guestName || !selectedRoomId || !checkInDate || !checkOutDate) return;
-
-    setSubmitting(true);
-    try {
-      // Find room details
-      const room = availableRooms.find((r) => r.id === selectedRoomId);
-      if (!room) throw new Error("Selected room is invalid.");
-
-      // 1. Check if guest already exists or register them in directory
-      const newGuest = await guestService.createGuest(selectedBusinessId, {
-        name: guestName,
-        email: guestEmail || "walkin@guest.com",
-        phone: guestPhone || "+1 (555) 000-0000",
-      });
-
-      // 2. Save booking
-      await bookingService.createBooking(selectedBusinessId, {
-        guestId: newGuest.id,
-        guestName: newGuest.name,
-        guestPhone: newGuest.phone,
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        roomType: room.type,
-        checkInDate,
-        checkOutDate,
-        status: "confirmed",
-        numberOfGuests: Number(guestsCount),
-        totalPrice: Number(totalPrice),
-      });
-
-      // Clean inputs
-      setGuestName("");
-      setGuestPhone("");
-      setGuestEmail("");
-      setSelectedRoomId("");
-      setCheckInDate("");
-      setCheckOutDate("");
-      setShowAddModal(false);
-      
-      // Reload first page
-      setCurrentPage(1);
-      setCursors({ 1: null });
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Failed to create booking.");
+      alert("Failed to add service.");
     } finally {
-      setSubmitting(false);
+      setSubmittingService(false);
     }
   };
 
-  const statusColors: Record<BookingStatus, string> = {
-    pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    confirmed: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    "checked-in": "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-    "checked-out": "text-slate-450 bg-slate-900 border-slate-800",
-    cancelled: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  // Delete Service Type Category
+  const handleDeleteService = async (sId: string) => {
+    if (!confirm("Are you sure you want to delete this service type?")) return;
+    try {
+      await requestService.deleteService(selectedBusinessId, sId);
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  // Create Request log
+  const handleCreateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoomNumber || !selectedServiceName || !requestIssue.trim()) {
+      alert("Please enter all details.");
+      return;
+    }
+
+    setSubmittingRequest(true);
+    try {
+      await requestService.createRequest(selectedBusinessId, {
+        roomNumber: selectedRoomNumber,
+        serviceName: selectedServiceName,
+        issue: requestIssue.trim(),
+        status: "pending"
+      });
+      setRequestIssue("");
+      setShowAddRequestModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save request.");
+    } finally {
+      setSubmittingRequest(false);
+    }
+  };
+
+  // Toggle Request status
+  const handleStatusChange = async (reqId: string, nextStatus: "pending" | "in-progress" | "completed") => {
+    try {
+      await requestService.updateRequestStatus(selectedBusinessId, reqId, nextStatus);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Delete Request log
+  const handleDeleteRequest = async (reqId: string) => {
+    if (!confirm("Are you sure you want to delete this request record?")) return;
+    try {
+      await requestService.deleteRequest(selectedBusinessId, reqId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Filter requests list
+  const filteredRequests = requests.filter((req) => {
+    if (queueFilter === "all") return true;
+    return req.status === queueFilter;
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 text-slate-800 font-sans">
+      
+      {/* 1. TITLE HEADER & GENERAL ACTIONS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Bookings Log</h1>
-          <p className="text-slate-400 text-sm mt-1">Manage guest check-ins, registrations, and scheduler</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Requests</h1>
+          <p className="text-slate-500 text-xs mt-0.5 font-medium">Manage hotel room service calls and assistance requests.</p>
         </div>
+        
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setShowAddServiceModal(true)}
+            className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4 text-slate-400" /> Add Service
+          </button>
+          
+          <button
+            onClick={() => setShowAddRequestModal(true)}
+            className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-[0.98] transition-all"
+          >
+            <Plus className="w-4 h-4" /> Add Request
+          </button>
+        </div>
+      </div>
+
+      {/* 2. TAB TOGGLE NAVIGATION */}
+      <div className="flex border-b border-slate-200">
         <button
-          onClick={() => setShowAddModal(true)}
-          className="h-10 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 rounded-lg text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/15 active:scale-[0.98] transition-all"
+          onClick={() => setActiveTab("requests")}
+          className={`pb-3.5 px-5 text-xs font-bold transition-all relative ${
+            activeTab === "requests" ? "text-blue-600 font-extrabold" : "text-slate-400 hover:text-slate-700"
+          }`}
         >
-          <Plus className="w-4.5 h-4.5" /> Book Room
+          Active Requests Queue ({requests.length})
+          {activeTab === "requests" && (
+            <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+          )}
+        </button>
+        
+        <button
+          onClick={() => setActiveTab("services")}
+          className={`pb-3.5 px-5 text-xs font-bold transition-all relative ${
+            activeTab === "services" ? "text-blue-600 font-extrabold" : "text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          Services Directory ({services.length})
+          {activeTab === "services" && (
+            <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+          )}
         </button>
       </div>
 
-      {/* Filter panel */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-slate-450 font-bold uppercase tracking-wide">
-            <Filter className="w-3.5 h-3.5" /> Status:
-          </div>
-          {["all", "confirmed", "checked-in", "checked-out", "cancelled"].map((status) => (
-            <button
-              key={status}
-              onClick={() => handleFilterChange(status)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all ${
-                (status === "all" && !statusFilter) || statusFilter === status
-                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
-                  : "bg-slate-950/40 text-slate-400 border border-slate-850 hover:border-slate-800"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Booking List Cards */}
-      {loading ? (
-        <div className="h-[300px] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="text-center py-20 bg-slate-900/10 border border-slate-850 rounded-2xl">
-          <CalendarDays className="w-12 h-12 text-slate-650 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 font-semibold">No bookings registered</p>
-          <p className="text-xs text-slate-500 mt-1">Try changing status filter or book a room to start.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {bookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="bg-slate-900/30 border border-slate-850 hover:border-slate-800 p-5 rounded-2xl flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
+      {/* 3. ACTIVE VIEWPORT */}
+      {activeTab === "requests" ? (
+        
+        // REQUESTS QUEUE TAB VIEW
+        <div className="space-y-5">
+          {/* Queue Filter bar */}
+          <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
+            <span className="text-[10px] font-extrabold uppercase text-slate-400 pl-2 tracking-wide">Filter Queue:</span>
+            {["all", "pending", "in-progress", "completed"].map((st) => (
+              <button
+                key={st}
+                onClick={() => setQueueFilter(st)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all ${
+                  queueFilter === st
+                    ? "bg-blue-50 text-blue-600 border border-blue-100"
+                    : "bg-slate-50 text-slate-500 hover:bg-slate-100 border border-transparent"
+                }`}
               >
-                <div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-white text-base">{booking.guestName}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{booking.guestPhone}</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${statusColors[booking.status]}`}>
-                      {booking.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-850/50">
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Room Allocation</span>
-                      <p className="text-xs font-semibold text-slate-200 mt-0.5">
-                        Room {booking.roomNumber} <span className="font-normal text-slate-450 text-[10px]">({booking.roomType})</span>
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Stay Schedule</span>
-                      <p className="text-xs font-semibold text-slate-200 mt-0.5">
-                        {booking.checkInDate} to {booking.checkOutDate}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-850/50">
-                  <span className="text-xs font-bold text-white">
-                    Total: ${booking.totalPrice}
-                  </span>
-
-                  {/* Actions based on booking state */}
-                  <div className="flex items-center gap-2">
-                    {booking.status === "confirmed" && (
-                      <button
-                        onClick={() => handleStatusChange(booking.id, "checked-in")}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold py-1.5 px-3 rounded-lg shadow transition-colors"
-                      >
-                        Check-In
-                      </button>
-                    )}
-                    {booking.status === "checked-in" && (
-                      <button
-                        onClick={() => handleStatusChange(booking.id, "checked-out")}
-                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold py-1.5 px-3 rounded-lg shadow transition-colors"
-                      >
-                        Check-Out
-                      </button>
-                    )}
-                    {(booking.status === "confirmed" || booking.status === "pending") && (
-                      <button
-                        onClick={() => handleStatusChange(booking.id, "cancelled")}
-                        className="text-rose-400 hover:bg-rose-500/10 text-xs font-semibold py-1.5 px-2.5 rounded-lg transition-colors border border-transparent hover:border-rose-500/10"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+                {st === "in-progress" ? "In Progress" : st}
+              </button>
             ))}
           </div>
 
-          {/* Simple Pagination Buttons */}
-          <div className="flex justify-center items-center gap-4 pt-4">
-            <button
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-              className="p-2 border border-slate-800 bg-slate-950/40 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-xs text-slate-450 font-bold">
-              Page {currentPage}
-            </span>
-            <button
-              onClick={handleNextPage}
-              disabled={bookings.length < pageSize}
-              className="p-2 border border-slate-800 bg-slate-950/40 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+          {loading ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : filteredRequests.length === 0 ? (
+            <div className="text-center py-20 bg-white border border-slate-100 rounded-2xl shadow-sm">
+              <BellRing className="w-12 h-12 text-slate-350 mx-auto mb-3" />
+              <h3 className="font-extrabold text-slate-800 text-sm">No Active Requests</h3>
+              <p className="text-xs text-slate-450 mt-1">Raise a request or check scanner portals to populate the queue.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredRequests.map((req) => {
+                
+                let borderStyle = "border-slate-100 hover:border-slate-200 bg-white";
+                let statusBadge = "";
+                let actionBtn = null;
+
+                if (req.status === "pending") {
+                  borderStyle = "border-amber-100 hover:border-amber-200/80 bg-white";
+                  statusBadge = "bg-amber-50 text-amber-600 border border-amber-100";
+                  actionBtn = (
+                    <button
+                      onClick={() => handleStatusChange(req.id, "in-progress")}
+                      className="h-8 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[10px] uppercase tracking-wide px-3.5 transition-colors flex items-center gap-1 shadow-sm"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Start Work
+                    </button>
+                  );
+                } 
+                else if (req.status === "in-progress") {
+                  borderStyle = "border-blue-100 hover:border-blue-200/80 bg-white";
+                  statusBadge = "bg-blue-50 text-blue-600 border border-blue-100";
+                  actionBtn = (
+                    <button
+                      onClick={() => handleStatusChange(req.id, "completed")}
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] uppercase tracking-wide px-3.5 transition-colors flex items-center gap-1 shadow-sm"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Complete
+                    </button>
+                  );
+                } 
+                else if (req.status === "completed") {
+                  borderStyle = "border-emerald-100 hover:border-emerald-200/80 bg-white";
+                  statusBadge = "bg-emerald-50 text-emerald-600 border border-emerald-100";
+                  actionBtn = (
+                    <span className="text-[10px] text-emerald-600 font-extrabold flex items-center gap-1 px-2.5">
+                      <Check className="w-4 h-4" /> Resolved
+                    </span>
+                  );
+                }
+
+                return (
+                  <div key={req.id} className={`border rounded-2xl p-5 shadow-sm flex flex-col justify-between transition-all ${borderStyle}`}>
+                    <div>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[9px] uppercase font-black tracking-widest text-slate-400">Guest Service Call</span>
+                          <h3 className="text-xl font-black text-slate-900 mt-0.5">Room {req.roomNumber}</h3>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusBadge}`}>
+                          {req.status === "in-progress" ? "In Progress" : req.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2">
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide block">Service Requested</span>
+                          <span className="text-xs font-extrabold text-slate-800">{req.serviceName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide block">Detailed Issue</span>
+                          <p className="text-xs text-slate-550 leading-relaxed font-medium pt-0.5">{req.issue}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[9px] font-semibold text-slate-400">{formatDateTime(req.createdAt)}</span>
+                      
+                      <div className="flex items-center gap-2">
+                        {actionBtn}
+                        <button
+                          onClick={() => handleDeleteRequest(req.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete Request Log"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+      ) : (
+
+        // SERVICES CATALOG TAB VIEW
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Block: Add Form */}
+          <div className="lg:col-span-5 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                <Layers className="w-5 h-5 text-blue-600" /> Create Service Category
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Register a hotel assistance catalog label</p>
+            </div>
+
+            <form onSubmit={handleCreateService} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Laundry Service"
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={submittingService}
+                className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              >
+                {submittingService ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Service Category"}
+              </button>
+            </form>
+          </div>
+
+          {/* Right Block: Services Listing */}
+          <div className="lg:col-span-7 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4">
+            <div>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
+                Configured Service Options ({services.length})
+              </h3>
+              
+              {services.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-8 text-center">No categories registered.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                  {services.map((srv) => (
+                    <div key={srv.id} className="flex justify-between items-center py-2.5 px-3.5 bg-slate-50/50 rounded-xl border border-slate-150 hover:border-slate-250">
+                      <span className="text-xs font-bold text-slate-700">{srv.name}</span>
+                      <button
+                        onClick={() => handleDeleteService(srv.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Delete Service Category"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
       )}
 
-      {/* Book Room Modal */}
+      {/* Add Service Type Modal */}
       <AnimatePresence>
-        {showAddModal && (
+        {showAddServiceModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddServiceModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl relative z-10 space-y-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-sm bg-white border border-slate-150 p-6 rounded-2xl shadow-2xl relative z-10 space-y-4"
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Create Booking Workspace</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Assign an available room to a guest profile</p>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                    <Layers className="w-5 h-5 text-blue-650" /> Add Service Category
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Register a service tag in the hotel menu</p>
                 </div>
-                <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white">
+                <button onClick={() => setShowAddServiceModal(false)} className="text-slate-400 hover:text-slate-650">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateBooking} className="space-y-4">
-                
-                {/* Guest Details */}
-                <div className="space-y-3.5">
-                  <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <UserPlus className="w-4 h-4" /> Guest Information
-                  </h3>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-350 uppercase">Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white placeholder-slate-650 px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Phone Number</label>
-                      <input
-                        type="text"
-                        required
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        placeholder="+1 (555) 012-3456"
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white placeholder-slate-650 px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Email Address</label>
-                      <input
-                        type="email"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        placeholder="john.doe@gmail.com"
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white placeholder-slate-650 px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                  </div>
+              <form onSubmit={handleCreateService} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Toiletries Refill"
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all"
+                  />
                 </div>
 
-                {/* Stay Details */}
-                <div className="space-y-3.5 border-t border-slate-850 pt-4">
-                  <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <CalendarDays className="w-4 h-4" /> Room & Schedule
-                  </h3>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-350 uppercase">Select Available Room</label>
-                    <select
-                      required
-                      value={selectedRoomId}
-                      onChange={(e) => {
-                        const rId = e.target.value;
-                        setSelectedRoomId(rId);
-                        const rm = availableRooms.find((r) => r.id === rId);
-                        if (rm) setTotalPrice(rm.pricePerNight * 2); // Default to 2 nights estimation
-                      }}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white px-3.5 py-2 rounded-lg text-sm transition-all outline-none cursor-pointer"
-                    >
-                      <option value="">-- Choose a clean room --</option>
-                      {availableRooms.map((rm) => (
-                        <option key={rm.id} value={rm.id}>
-                          Room {rm.roomNumber} - {rm.type} (${rm.pricePerNight}/night)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Check-In Date</label>
-                      <input
-                        type="date"
-                        required
-                        value={checkInDate}
-                        onChange={(e) => setCheckInDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Check-Out Date</label>
-                      <input
-                        type="date"
-                        required
-                        value={checkOutDate}
-                        onChange={(e) => setCheckOutDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Number of Guests</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={6}
-                        required
-                        value={guestsCount}
-                        onChange={(e) => setGuestsCount(Number(e.target.value))}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-350 uppercase">Estimated Total Cost ($)</label>
-                      <input
-                        type="number"
-                        required
-                        value={totalPrice}
-                        onChange={(e) => setTotalPrice(Number(e.target.value))}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white px-3.5 py-2 rounded-lg text-sm transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submits */}
-                <div className="flex gap-3 pt-4 border-t border-slate-850">
+                <div className="flex gap-3 pt-3 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="w-1/2 h-10 border border-slate-800 hover:bg-slate-800 text-slate-300 font-semibold rounded-lg text-xs transition-colors"
+                    onClick={() => setShowAddServiceModal(false)}
+                    className="w-1/2 h-10 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-lg text-xs transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting || !selectedRoomId}
-                    className="w-1/2 h-10 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition-all disabled:opacity-50"
+                    disabled={submittingService}
+                    className="w-1/2 h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition-all shadow-sm"
                   >
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Reservation"}
+                    {submittingService ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Service"}
                   </button>
                 </div>
-
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Request Modal */}
+      <AnimatePresence>
+        {showAddRequestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddRequestModal(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-white border border-slate-150 p-6 rounded-2xl shadow-2xl relative z-10 space-y-4"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                    <BellRing className="w-5 h-5 text-blue-650" /> Add Request
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Register a new room assistance ticket</p>
+                </div>
+                <button onClick={() => setShowAddRequestModal(false)} className="text-slate-400 hover:text-slate-650">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {rooms.length === 0 || services.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-100 text-amber-600 text-xs rounded-xl flex items-center gap-2">
+                  <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
+                  <span>Configure Rooms and Services catalogs first!</span>
+                </div>
+              ) : (
+                <form onSubmit={handleCreateRequest} className="space-y-4">
+                  
+                  {/* Select Room */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Room Number</label>
+                    <div className="relative">
+                      <select
+                        value={selectedRoomNumber}
+                        onChange={(e) => setSelectedRoomNumber(e.target.value)}
+                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-xs outline-none cursor-pointer"
+                      >
+                        {rooms.map((rm) => (
+                          <option key={rm.id} value={rm.roomNumber}>Room {rm.roomNumber} ({rm.type})</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Select Service Type */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Category</label>
+                    <div className="relative">
+                      <select
+                        value={selectedServiceName}
+                        onChange={(e) => setSelectedServiceName(e.target.value)}
+                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-xs outline-none cursor-pointer"
+                      >
+                        {services.map((srv) => (
+                          <option key={srv.id} value={srv.name}>{srv.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Text details */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Detailed Issue</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={requestIssue}
+                      onChange={(e) => setRequestIssue(e.target.value)}
+                      placeholder="e.g. AC remote is not responding, need battery change"
+                      className="w-full bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-colors resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddRequestModal(false)}
+                      className="w-1/2 h-10 border border-slate-200 hover:bg-slate-50 text-slate-650 font-bold rounded-lg text-xs transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingRequest}
+                      className="w-1/2 h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition-all shadow-sm"
+                    >
+                      {submittingRequest ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Request"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}

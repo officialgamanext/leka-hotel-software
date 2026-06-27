@@ -20,6 +20,10 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
+*, ::before, ::after {
+  font-family: 'Poppins', sans-serif !important;
+}
+
 /* Force maximum font weight of 600 (Semibold) across the application */
 h1, h2, h3, h4, h5, h6, strong, b, th, .font-bold, .font-semibold, .font-extrabold, .font-black {
   font-weight: 600 !important;

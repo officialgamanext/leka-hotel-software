@@ -51,6 +51,7 @@ export interface Room {
   additionalMembers?: any[] | null;
   lastCleaned?: string;
   notes?: string;
+  qrCodeUrl?: string | null;
 }
 
 export interface Guest {

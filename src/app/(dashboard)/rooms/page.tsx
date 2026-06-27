@@ -9,7 +9,7 @@ import {
   Plus, Search, Key, ChevronDown, User, Clock, 
   Trash2, X, ShieldAlert, Loader2, Paintbrush, 
   Wrench, Layers, CreditCard, Compass, Check, BedDouble, 
-  Hotel, Users, Phone, Mail, Edit3, Save, Calendar
+  Hotel, Users, Phone, Mail, Edit3, Save, Calendar, Sparkles, Download
 } from "lucide-react";
 
 // Date formatting helper
@@ -34,6 +34,53 @@ function formatDateTime(dateTimeStr: string | null | undefined): string {
   }
 }
 
+function getQrCodeUrl(businessId: string, roomNum: string): string {
+  if (typeof window === "undefined") return "";
+  const scanUrl = `${window.location.origin}/raise-request?hotelId=${businessId}&roomNumber=${roomNum}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(scanUrl)}`;
+}
+
+function downloadSingleQr(roomNumber: string, businessId: string, qrCodeUrl?: string | null) {
+  if (typeof window === "undefined") return;
+  const scanUrl = `${window.location.origin}/raise-request?hotelId=${businessId}&roomNumber=${roomNumber}`;
+  const qrUrl = qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = qrUrl;
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 340;
+    canvas.height = 410;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Background card (White)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Header branding & Room identifier
+    ctx.fillStyle = "#0f172a"; // Slate-900
+    ctx.font = "bold 24px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`ROOM ${roomNumber}`, canvas.width / 2, 45);
+
+    // QR Image draw
+    ctx.drawImage(img, 20, 70, 300, 300);
+
+    // Footer instruction
+    ctx.fillStyle = "#64748b"; // Slate-500
+    ctx.font = "bold 10px Arial, Helvetica, sans-serif";
+    ctx.fillText("Scan to Raise Guest Service Request", canvas.width / 2, 390);
+
+    // Download trigger link
+    const link = document.createElement("a");
+    link.download = `Room_${roomNumber}_QR.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+}
+
 export default function RoomsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
 
@@ -55,6 +102,7 @@ export default function RoomsPage() {
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState<Room | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<Room | null>(null);
+  const [viewQrRoom, setViewQrRoom] = useState<Room | null>(null);
 
   // Add Floor State
   const [newFloorNumber, setNewFloorNumber] = useState<number>(1);
@@ -112,6 +160,15 @@ export default function RoomsPage() {
     } catch (err) {
       console.error("Failed to load catalog lists:", err);
     }
+  };
+
+  const downloadAllQrs = () => {
+    if (filteredRooms.length === 0) return;
+    filteredRooms.forEach((rm, index) => {
+      setTimeout(() => {
+        downloadSingleQr(rm.roomNumber, selectedBusinessId, rm.qrCodeUrl);
+      }, index * 200);
+    });
   };
 
   useEffect(() => {
@@ -406,6 +463,14 @@ export default function RoomsPage() {
           >
             <CreditCard className="w-4 h-4 text-slate-400" /> Manage Room Types
           </button>
+
+          <button
+            onClick={downloadAllQrs}
+            disabled={filteredRooms.length === 0}
+            className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+          >
+            <Download className="w-4 h-4 text-slate-400" /> Download All QR Codes
+          </button>
           
           <button
             onClick={() => setShowAddRoomModal(true)}
@@ -638,6 +703,28 @@ export default function RoomsPage() {
                 </div>
 
                 {footerBlock}
+
+                {/* QR Code Action Footer */}
+                <div className="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewQrRoom(room);
+                    }}
+                    className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500" /> View QR
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadSingleQr(room.roomNumber, selectedBusinessId, room.qrCodeUrl);
+                    }}
+                    className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-400" /> Download QR
+                  </button>
+                </div>
 
               </div>
             );
@@ -1137,6 +1224,36 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
+                {/* QR Code Card */}
+                <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <Sparkles className="w-4 h-4 text-blue-600" /> Room QR Code
+                  </h3>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {showCheckInModal && (
+                      <img 
+                        src={showCheckInModal.qrCodeUrl || getQrCodeUrl(selectedBusinessId, showCheckInModal.roomNumber)} 
+                        alt={`QR Code for Room ${showCheckInModal.roomNumber}`}
+                        className="w-28 h-28 border border-slate-155 rounded-lg p-1 bg-white shrink-0 shadow-sm"
+                      />
+                    )}
+                    <div className="text-xs space-y-1.5 leading-relaxed text-slate-500">
+                      <p className="font-bold text-slate-700">Scan to Raise Guest Service Request</p>
+                      <p className="text-[11px]">Print this QR code and place it inside Room {showCheckInModal?.roomNumber}. Guests scan this code to raise service or housekeeping requests directly from their mobile phones.</p>
+                      {showCheckInModal && (
+                        <a 
+                          href={`${window.location.origin}/raise-request?hotelId=${selectedBusinessId}&roomNumber=${showCheckInModal.roomNumber}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-600 hover:underline font-bold text-[11px] block pt-1"
+                        >
+                          Open Portal Link &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Section B: Contact & Personal Details */}
                 <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
@@ -1443,6 +1560,36 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
+                {/* QR Code Card */}
+                <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <Sparkles className="w-4 h-4 text-blue-600" /> Room QR Code
+                  </h3>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {showDetailModal && (
+                      <img 
+                        src={showDetailModal.qrCodeUrl || getQrCodeUrl(selectedBusinessId, showDetailModal.roomNumber)} 
+                        alt={`QR Code for Room ${showDetailModal.roomNumber}`}
+                        className="w-28 h-28 border border-slate-155 rounded-lg p-1 bg-white shrink-0 shadow-sm"
+                      />
+                    )}
+                    <div className="text-xs space-y-1.5 leading-relaxed text-slate-500">
+                      <p className="font-bold text-slate-700">Scan to Raise Guest Service Request</p>
+                      <p className="text-[11px]">Print this QR code and place it inside Room {showDetailModal?.roomNumber}. Guests scan this code to raise service or housekeeping requests directly from their mobile phones.</p>
+                      {showDetailModal && (
+                        <a 
+                          href={`${window.location.origin}/raise-request?hotelId=${selectedBusinessId}&roomNumber=${showDetailModal.roomNumber}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-blue-600 hover:underline font-bold text-[11px] block pt-1"
+                        >
+                          Open Portal Link &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Primary guest card */}
                 <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm space-y-4">
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2.5 font-sans">
@@ -1574,6 +1721,61 @@ export default function RoomsPage() {
 
             </div>
 
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* View QR Code Modal */}
+      <AnimatePresence>
+        {viewQrRoom && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setViewQrRoom(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-white border border-slate-150 p-6 rounded-2xl shadow-2xl relative z-10 space-y-5"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5 font-sans">
+                    <Sparkles className="w-5 h-5 text-blue-600" /> Room {viewQrRoom.roomNumber} QR Code
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5 font-sans">Guest service scan portal</p>
+                </div>
+                <button onClick={() => setViewQrRoom(null)} className="text-slate-400 hover:text-slate-650">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <img 
+                  src={viewQrRoom.qrCodeUrl || getQrCodeUrl(selectedBusinessId, viewQrRoom.roomNumber)} 
+                  alt={`QR Code for Room ${viewQrRoom.roomNumber}`}
+                  className="w-48 h-48 border border-slate-150 rounded-xl p-2.5 bg-white shadow-sm"
+                />
+                <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider mt-3 font-sans">
+                  Scan to Raise Service Request
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setViewQrRoom(null)}
+                  className="w-1/2 h-10 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl text-xs transition-colors font-sans"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadSingleQr(viewQrRoom.roomNumber, selectedBusinessId, viewQrRoom.qrCodeUrl)}
+                  className="w-1/2 h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm font-sans"
+                >
+                  <Download className="w-4 h-4" /> Download QR
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
