@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { roomService } from "@/services/room.service";
 import { reportService } from "@/services/report.service";
+import { guestService } from "@/services/guest.service";
 import { Room, RoomStatus } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -393,6 +394,20 @@ export default function RoomsPage() {
       });
 
       await roomService.checkInRoom(selectedBusinessId, showCheckInModal.id, primaryGuestLog);
+
+      // Auto-save/update guest record keyed by primary mobile number
+      await guestService.upsertGuest(selectedBusinessId, {
+        name: headName.trim(),
+        phone: guestPhone1.trim(),
+        phone2: guestPhone2.trim() || null,
+        email: guestEmail.trim() || null,
+        gender: headGender,
+        idProofType: headGovIdType || null,
+        idProofNumber: headGovIdNumber.trim() || null,
+        address: headAddress.trim() || null,
+        lastRoom: showCheckInModal.roomNumber,
+        lastCheckIn: checkInTime,
+      });
       
       // Clear inputs
       setHeadName("");

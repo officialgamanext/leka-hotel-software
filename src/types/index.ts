@@ -60,11 +60,18 @@ export interface Room {
 export interface Guest {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  idProofType?: string;
-  idProofNumber?: string;
+  email?: string | null;
+  phone: string;           // Primary key — main mobile number
+  phone2?: string | null;
+  gender?: string | null;
+  idProofType?: string | null;
+  idProofNumber?: string | null;
+  address?: string | null;
+  lastRoom?: string | null;
+  lastCheckIn?: string | null;
+  totalStays?: number;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type BookingStatus = "pending" | "confirmed" | "checked-in" | "checked-out" | "cancelled";
