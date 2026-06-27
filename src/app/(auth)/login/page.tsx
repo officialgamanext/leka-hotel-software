@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { useAppStore } from "@/lib/store";
@@ -8,7 +8,7 @@ import { isFirebaseConfigured } from "@/firebase/client";
 import { motion } from "framer-motion";
 import {
   Lock, User, Eye, EyeOff, Shield, Zap, CheckCircle2,
-  Hotel, Loader2, Sparkles, AlertCircle
+  Hotel, Loader2, Sparkles, AlertCircle, Download
 } from "lucide-react";
 
 
@@ -24,6 +24,37 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+
+  const [installPromptEvent, setInstallPromptEvent] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isStandaloneMode = window.matchMedia("(display-mode: standalone)").matches || 
+                               (window.navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setInstallPromptEvent(e);
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+      return () => {
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      };
+    }
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    const { outcome } = await installPromptEvent.userChoice;
+    if (outcome === "accepted") {
+      setInstallPromptEvent(null);
+    }
+  };
 
   const setCurrentStaff = useAppStore((state) => state.setCurrentStaff);
   const setSelectedBusinessId = useAppStore((state) => state.setSelectedBusinessId);
@@ -124,6 +155,19 @@ function LoginForm() {
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </motion.div>
+          )}
+
+          {/* PWA Install Button */}
+          {!isStandalone && installPromptEvent && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={handleInstallClick}
+              className="w-full h-10 mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-500/10 active:scale-[0.99] border-none cursor-pointer"
+            >
+              <Download className="w-4 h-4" /> Install Leka Hotel App
+            </motion.button>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
