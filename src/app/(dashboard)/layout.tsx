@@ -96,7 +96,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Requests", href: "/bookings", icon: CalendarDays },
     { label: "Guests", href: "/guests", icon: Users },
     { label: "Settings", href: "/settings", icon: Settings },
-    { label: "Support", href: "/settings", icon: HelpCircle },
+    { label: "Support", href: "/support", icon: HelpCircle },
   ];
 
   if (!selectedBusinessId || loading) {
