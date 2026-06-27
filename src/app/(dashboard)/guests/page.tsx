@@ -74,7 +74,7 @@ export default function GuestsPage() {
     (guest.gender || "").toLowerCase() === "female";
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-7xl mx-auto font-sans">
+    <div className="space-y-8 max-w-7xl mx-auto font-sans">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">

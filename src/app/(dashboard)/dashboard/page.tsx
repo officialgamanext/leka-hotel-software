@@ -247,7 +247,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-7xl mx-auto font-sans relative">
+    <div className="space-y-8 max-w-7xl mx-auto font-sans relative">
 
       {/* Header and Filter Row */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-slate-100 pb-6">

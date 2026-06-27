@@ -79,7 +79,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-5xl mx-auto font-sans">
+    <div className="space-y-8 max-w-5xl mx-auto font-sans">
 
       {/* Page Header */}
       <div className="border-b border-slate-100 pb-5">

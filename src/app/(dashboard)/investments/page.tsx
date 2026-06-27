@@ -134,7 +134,7 @@ export default function InvestmentsPage() {
   };
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-7xl mx-auto font-sans relative">
+    <div className="space-y-8 max-w-7xl mx-auto font-sans relative">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">

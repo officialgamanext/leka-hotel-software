@@ -114,7 +114,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-7xl mx-auto font-sans">
+    <div className="space-y-8 max-w-7xl mx-auto font-sans">
       
       {/* 1. SUPPORT PAGE HEADER */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-100 p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden">

@@ -101,7 +101,7 @@ export default function ReportsPage() {
   const handlePrintBill = () => { if (typeof window !== "undefined") window.print(); };
 
   return (
-    <div className="p-6 sm:p-10 space-y-8 max-w-7xl mx-auto font-sans relative">
+    <div className="space-y-8 max-w-7xl mx-auto font-sans relative">
 
       <style jsx global>{`
         @media print {
