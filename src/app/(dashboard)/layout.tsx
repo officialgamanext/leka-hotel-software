@@ -95,6 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Payments", href: "/reports", icon: DollarSign }, 
     { label: "Requests", href: "/bookings", icon: CalendarDays },
     { label: "Guests", href: "/guests", icon: Users },
+    { label: "Investments", href: "/investments", icon: Briefcase },
     { label: "Settings", href: "/settings", icon: Settings },
     { label: "Support", href: "/support", icon: HelpCircle },
   ];

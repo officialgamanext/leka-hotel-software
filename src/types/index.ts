@@ -127,3 +127,11 @@ export interface DashboardSummary {
   todayCheckOuts: number;
   lastUpdated: string;
 }
+
+export interface Investment {
+  id: string;
+  name: string;
+  amount: number;
+  date: string; // ISO string or YYYY-MM-DD
+  createdAt: string;
+}
