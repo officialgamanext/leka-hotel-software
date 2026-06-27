@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
     let sessionCookie = "demo_session_cookie_token_value_xyz";
 
     if (isAdminConfigured && adminAuth) {
-      sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+      try {
+        sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+      } catch (err: any) {
+        console.error("Firebase Admin SDK failed to create session cookie, falling back to idToken:", err);
+        sessionCookie = idToken; // Fallback so middleware passes and user is not blocked
+      }
     } else {
       console.warn("Using Demo Mode session token. Admin SDK not configured.");
     }

@@ -39,6 +39,12 @@ self.addEventListener("fetch", (event) => {
   // Only handle HTTP/HTTPS requests (avoid chrome-extension:// etc.)
   if (!event.request.url.startsWith("http")) return;
 
+  // STRICT CACHE RULE: Do NOT attempt to cache non-GET requests (e.g. POST, PUT, DELETE)
+  if (event.request.method !== "GET") {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
