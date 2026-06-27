@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, isAdminConfigured } from "@/firebase/admin";
+
+// Explicitly enforce the standard Node.js serverless context
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,15 +14,23 @@ export async function POST(req: NextRequest) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     let sessionCookie = "demo_session_cookie_token_value_xyz";
 
-    if (isAdminConfigured && adminAuth) {
-      try {
-        sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-      } catch (err: any) {
-        console.error("Firebase Admin SDK failed to create session cookie, falling back to idToken:", err);
-        sessionCookie = idToken; // Fallback so middleware passes and user is not blocked
+    try {
+      // Dynamic import to prevent crash at module evaluation time
+      const { adminAuth, isAdminConfigured } = await import("@/firebase/admin");
+      
+      if (isAdminConfigured && adminAuth) {
+        try {
+          sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+        } catch (err: any) {
+          console.error("Firebase Admin SDK failed to create session cookie, falling back to idToken:", err);
+          sessionCookie = idToken; // Fallback so middleware passes and user is not blocked
+        }
+      } else {
+        console.warn("Using Demo Mode session token. Admin SDK not configured.");
       }
-    } else {
-      console.warn("Using Demo Mode session token. Admin SDK not configured.");
+    } catch (importErr: any) {
+      console.error("Firebase Admin module failed to import dynamically, using idToken fallback:", importErr);
+      sessionCookie = idToken; // Fallback
     }
 
     const response = NextResponse.json({ status: "success" }, { status: 200 });
