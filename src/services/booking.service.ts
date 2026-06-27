@@ -122,7 +122,7 @@ export const bookingService = {
           if (oldRoomStatus === "available") {
             dashboard.availableRooms -= 1;
             dashboard.occupiedRooms += 1;
-          } else if (oldRoomStatus === "dirty") {
+          } else if (oldRoomStatus === "cleaning") {
             dashboard.dirtyRooms -= 1;
             dashboard.occupiedRooms += 1;
           } else if (oldRoomStatus === "maintenance") {
@@ -184,7 +184,7 @@ export const bookingService = {
         if (roomData.status === "available") {
           updates.availableRooms = increment(-1);
           updates.occupiedRooms = increment(1);
-        } else if (roomData.status === "dirty") {
+        } else if (roomData.status === "cleaning") {
           updates.dirtyRooms = increment(-1);
           updates.occupiedRooms = increment(1);
         } else if (roomData.status === "maintenance") {
@@ -240,7 +240,7 @@ export const bookingService = {
           if (oldRoomStatus === "available") {
             dashboard.availableRooms -= 1;
             dashboard.occupiedRooms += 1;
-          } else if (oldRoomStatus === "dirty") {
+          } else if (oldRoomStatus === "cleaning") {
             dashboard.dirtyRooms -= 1;
             dashboard.occupiedRooms += 1;
           } else if (oldRoomStatus === "maintenance") {
@@ -251,7 +251,7 @@ export const bookingService = {
           dashboard.todayRevenue += booking.totalPrice;
 
         } else if (newStatus === "checked-out") {
-          room.status = "dirty";
+          room.status = "cleaning";
           if (oldRoomStatus === "occupied") {
             dashboard.occupiedRooms -= 1;
             dashboard.dirtyRooms += 1;
@@ -314,7 +314,7 @@ export const bookingService = {
         if (roomData.status === "available") {
           updates.availableRooms = increment(-1);
           updates.occupiedRooms = increment(1);
-        } else if (roomData.status === "dirty") {
+        } else if (roomData.status === "cleaning") {
           updates.dirtyRooms = increment(-1);
           updates.occupiedRooms = increment(1);
         } else if (roomData.status === "maintenance") {
@@ -326,7 +326,7 @@ export const bookingService = {
         updates.todayRevenue = increment(bookingData.totalPrice);
 
       } else if (newStatus === "checked-out") {
-        transaction.update(roomDocRef, { status: "dirty" as RoomStatus });
+        transaction.update(roomDocRef, { status: "cleaning" as RoomStatus });
         
         if (roomData.status === "occupied") {
           updates.occupiedRooms = increment(-1);

@@ -9,7 +9,8 @@ import {
   query, 
   orderBy, 
   runTransaction,
-  increment 
+  increment,
+  deleteDoc
 } from "firebase/firestore";
 import { Room, RoomStatus } from "@/types";
 import { demoDb } from "./demoDb";
@@ -38,18 +39,13 @@ export const roomService = {
    */
   subscribeRooms(businessId: string, callback: (rooms: Room[]) => void) {
     if (!isFirebaseConfigured) {
-      // Direct call immediately with current data
       callback(demoDb.getRooms());
-
-      // Setup a window listener to emulate Firestore real-time updates across components
       const handleStorageChange = () => {
         callback(demoDb.getRooms());
       };
-      
       if (typeof window !== "undefined") {
         window.addEventListener("demo-db-update", handleStorageChange);
       }
-
       return () => {
         if (typeof window !== "undefined") {
           window.removeEventListener("demo-db-update", handleStorageChange);
@@ -82,16 +78,15 @@ export const roomService = {
         id: `demo-room-${Math.random().toString(36).substring(2, 9)}`,
       };
       rooms.push(newRoom);
-      // Sort by room number
       rooms.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
       demoDb.setRooms(rooms);
 
-      // Adjust Dashboard summary
       const dashboard = demoDb.getDashboard();
       const statusFieldMap: Record<RoomStatus, keyof typeof dashboard> = {
         available: "availableRooms",
         occupied: "occupiedRooms",
-        dirty: "dirtyRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
         maintenance: "maintenanceRooms",
       };
       const field = statusFieldMap[newRoom.status];
@@ -101,7 +96,6 @@ export const roomService = {
         demoDb.setDashboard(dashboard);
       }
 
-      // Trigger synthetic updates
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("demo-db-update"));
       }
@@ -122,7 +116,8 @@ export const roomService = {
       const statusFieldMap: Record<RoomStatus, string> = {
         available: "availableRooms",
         occupied: "occupiedRooms",
-        dirty: "dirtyRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
         maintenance: "maintenanceRooms",
       };
 
@@ -136,6 +131,82 @@ export const roomService = {
     });
 
     return room;
+  },
+
+  /**
+   * Edit an existing room.
+   */
+  async editRoom(businessId: string, roomId: string, updatedData: Partial<Room>): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const rooms = demoDb.getRooms();
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx !== -1) {
+        rooms[idx] = { ...rooms[idx], ...updatedData };
+        demoDb.setRooms(rooms);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const roomDocRef = doc(db, `businesses/${businessId}/rooms/${roomId}`);
+    await updateDoc(roomDocRef, updatedData);
+  },
+
+  /**
+   * Delete a room.
+   */
+  async deleteRoom(businessId: string, roomId: string, currentStatus: RoomStatus): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const rooms = demoDb.getRooms();
+      const filtered = rooms.filter((r) => r.id !== roomId);
+      demoDb.setRooms(filtered);
+
+      const dashboard = demoDb.getDashboard();
+      const statusFieldMap: Record<RoomStatus, keyof typeof dashboard> = {
+        available: "availableRooms",
+        occupied: "occupiedRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
+        maintenance: "maintenanceRooms",
+      };
+
+      const field = statusFieldMap[currentStatus];
+      if (field && (dashboard[field] as number) > 0) {
+        (dashboard[field] as number) -= 1;
+        dashboard.lastUpdated = new Date().toISOString();
+        demoDb.setDashboard(dashboard);
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("demo-db-update"));
+      }
+      return;
+    }
+
+    const roomDocRef = doc(db, `businesses/${businessId}/rooms/${roomId}`);
+    const dashboardSummaryRef = doc(db, `businesses/${businessId}/dashboard/summary`);
+
+    await runTransaction(db, async (transaction) => {
+      transaction.delete(roomDocRef);
+
+      const statusFieldMap: Record<RoomStatus, string> = {
+        available: "availableRooms",
+        occupied: "occupiedRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
+        maintenance: "maintenanceRooms",
+      };
+
+      const fieldToDecrement = statusFieldMap[currentStatus];
+      if (fieldToDecrement) {
+        transaction.update(dashboardSummaryRef, {
+          [fieldToDecrement]: increment(-1),
+          lastUpdated: new Date().toISOString(),
+        });
+      }
+    });
   },
 
   /**
@@ -161,7 +232,8 @@ export const roomService = {
       const statusFieldMap: Record<RoomStatus, keyof typeof dashboard> = {
         available: "availableRooms",
         occupied: "occupiedRooms",
-        dirty: "dirtyRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
         maintenance: "maintenanceRooms",
       };
 
@@ -173,7 +245,6 @@ export const roomService = {
       dashboard.lastUpdated = new Date().toISOString();
       demoDb.setDashboard(dashboard);
 
-      // Trigger synthetic updates
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("demo-db-update"));
       }
@@ -199,7 +270,8 @@ export const roomService = {
       const statusFieldMap: Record<RoomStatus, string> = {
         available: "availableRooms",
         occupied: "occupiedRooms",
-        dirty: "dirtyRooms",
+        "near-checkout": "occupiedRooms",
+        cleaning: "dirtyRooms",
         maintenance: "maintenanceRooms",
       };
 
@@ -214,6 +286,260 @@ export const roomService = {
       if (newField) updates[newField] = increment(1);
 
       transaction.update(dashboardSummaryRef, updates);
+    });
+  },
+
+  /**
+   * FLOORS DATABASE SERVICES
+   */
+  async getFloors(businessId: string): Promise<number[]> {
+    if (!isFirebaseConfigured) {
+      return demoDb.getFloors();
+    }
+
+    const floorsRef = collection(db, `businesses/${businessId}/floors`);
+    const snapshot = await getDocs(floorsRef);
+    const floors: number[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && typeof data.floorNumber === "number") {
+        floors.push(data.floorNumber);
+      }
+    });
+    return floors.sort((a, b) => a - b);
+  },
+
+  async addFloor(businessId: string, floorNumber: number): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const floors = demoDb.getFloors();
+      if (!floors.includes(floorNumber)) {
+        floors.push(floorNumber);
+        floors.sort((a, b) => a - b);
+        demoDb.setFloors(floors);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const floorDocRef = doc(db, `businesses/${businessId}/floors/${floorNumber}`);
+    await setDoc(floorDocRef, { floorNumber });
+  },
+
+  async deleteFloor(businessId: string, floorNumber: number): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const floors = demoDb.getFloors();
+      const filtered = floors.filter((f) => f !== floorNumber);
+      demoDb.setFloors(filtered);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("demo-db-update"));
+      }
+      return;
+    }
+
+    const floorDocRef = doc(db, `businesses/${businessId}/floors/${floorNumber}`);
+    await deleteDoc(floorDocRef);
+  },
+
+  /**
+   * ROOM TYPES DATABASE SERVICES
+   */
+  async getRoomTypes(businessId: string): Promise<{ name: string; price: number }[]> {
+    if (!isFirebaseConfigured) {
+      return demoDb.getRoomTypes();
+    }
+
+    const typesRef = collection(db, `businesses/${businessId}/roomTypes`);
+    const snapshot = await getDocs(typesRef);
+    const types: { name: string; price: number }[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data && data.name) {
+        types.push({ name: data.name, price: Number(data.price || 0) });
+      }
+    });
+    return types;
+  },
+
+  async addRoomType(businessId: string, name: string, price: number): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const types = demoDb.getRoomTypes();
+      if (!types.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
+        types.push({ name, price });
+        demoDb.setRoomTypes(types);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const typeId = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const typeDocRef = doc(db, `businesses/${businessId}/roomTypes/${typeId}`);
+    await setDoc(typeDocRef, { name, price });
+  },
+
+  async editRoomType(businessId: string, oldName: string, name: string, price: number): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const types = demoDb.getRoomTypes();
+      const idx = types.findIndex((t) => t.name === oldName);
+      if (idx !== -1) {
+        types[idx] = { name, price };
+        demoDb.setRoomTypes(types);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const oldTypeId = oldName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const newTypeId = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    
+    // Delete old document and create new one if the name changed
+    if (oldTypeId !== newTypeId) {
+      await deleteDoc(doc(db, `businesses/${businessId}/roomTypes/${oldTypeId}`));
+    }
+    await setDoc(doc(db, `businesses/${businessId}/roomTypes/${newTypeId}`), { name, price });
+  },
+
+  async deleteRoomType(businessId: string, name: string): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const types = demoDb.getRoomTypes();
+      const filtered = types.filter((t) => t.name !== name);
+      demoDb.setRoomTypes(filtered);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("demo-db-update"));
+      }
+      return;
+    }
+
+    const typeId = name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    await deleteDoc(doc(db, `businesses/${businessId}/roomTypes/${typeId}`));
+  },
+
+  /**
+   * GUEST CHECK IN SERVICE
+   * Transition room to occupied and register logs.
+   */
+  async checkInRoom(
+    businessId: string,
+    roomId: string,
+    checkInData: {
+      guestName: string;
+      checkInTime: string;
+      checkOutTime: string;
+      additionalMembers: any[];
+    }
+  ): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const rooms = demoDb.getRooms();
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx !== -1) {
+        rooms[idx].status = "occupied";
+        rooms[idx].guestName = checkInData.guestName;
+        rooms[idx].checkInTime = checkInData.checkInTime;
+        rooms[idx].checkOutTime = checkInData.checkOutTime;
+        rooms[idx].additionalMembers = checkInData.additionalMembers;
+        demoDb.setRooms(rooms);
+
+        // Update dashboard
+        const dbSummary = demoDb.getDashboard();
+        dbSummary.occupiedRooms += 1;
+        dbSummary.availableRooms = Math.max(0, dbSummary.availableRooms - 1);
+        demoDb.setDashboard(dbSummary);
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const roomDocRef = doc(db, `businesses/${businessId}/rooms/${roomId}`);
+    const dashboardSummaryRef = doc(db, `businesses/${businessId}/dashboard/summary`);
+
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomDocRef);
+      if (!roomSnap.exists()) {
+        throw new Error("Room does not exist.");
+      }
+
+      const roomData = roomSnap.data() as Room;
+      if (roomData.status === "occupied") {
+        throw new Error("Room is already occupied.");
+      }
+
+      // Update room details
+      transaction.update(roomDocRef, {
+        status: "occupied",
+        guestName: checkInData.guestName,
+        checkInTime: checkInData.checkInTime,
+        checkOutTime: checkInData.checkOutTime,
+        additionalMembers: checkInData.additionalMembers
+      });
+
+      // Update occupancy dashboard counts
+      transaction.update(dashboardSummaryRef, {
+        occupiedRooms: increment(1),
+        availableRooms: increment(-1),
+        lastUpdated: new Date().toISOString()
+      });
+    });
+  },
+
+  /**
+   * GUEST CHECK OUT SERVICE
+   * Restores room to available/cleaning and logs check-out.
+   */
+  async checkOutRoom(businessId: string, roomId: string): Promise<void> {
+    if (!isFirebaseConfigured) {
+      const rooms = demoDb.getRooms();
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx !== -1) {
+        rooms[idx].status = "cleaning";
+        rooms[idx].guestName = null;
+        rooms[idx].checkInTime = null;
+        rooms[idx].checkOutTime = null;
+        rooms[idx].additionalMembers = null;
+        demoDb.setRooms(rooms);
+
+        // Update dashboard
+        const dbSummary = demoDb.getDashboard();
+        dbSummary.occupiedRooms = Math.max(0, dbSummary.occupiedRooms - 1);
+        dbSummary.dirtyRooms += 1;
+        demoDb.setDashboard(dbSummary);
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("demo-db-update"));
+        }
+      }
+      return;
+    }
+
+    const roomDocRef = doc(db, `businesses/${businessId}/rooms/${roomId}`);
+    const dashboardSummaryRef = doc(db, `businesses/${businessId}/dashboard/summary`);
+
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomDocRef);
+      if (!roomSnap.exists()) {
+        throw new Error("Room does not exist.");
+      }
+
+      transaction.update(roomDocRef, {
+        status: "cleaning",
+        guestName: null,
+        checkInTime: null,
+        checkOutTime: null,
+        additionalMembers: null
+      });
+
+      transaction.update(dashboardSummaryRef, {
+        occupiedRooms: increment(-1),
+        dirtyRooms: increment(1),
+        lastUpdated: new Date().toISOString()
+      });
     });
   }
 };

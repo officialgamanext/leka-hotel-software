@@ -32,7 +32,7 @@ export interface HotelSettings {
   taxRate: number;
 }
 
-export type RoomStatus = "available" | "occupied" | "dirty" | "maintenance";
+export type RoomStatus = "available" | "occupied" | "near-checkout" | "cleaning" | "maintenance";
 
 export interface Room {
   id: string;
@@ -41,6 +41,14 @@ export interface Room {
   floor: number;
   status: RoomStatus;
   pricePerNight: number;
+  guestName?: string | null;
+  guestPhone1?: string | null;
+  guestPhone2?: string | null;
+  guestEmail?: string | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  guestId?: string | null;
+  additionalMembers?: any[] | null;
   lastCleaned?: string;
   notes?: string;
 }
