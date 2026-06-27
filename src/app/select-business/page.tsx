@@ -9,10 +9,10 @@ import { demoDb } from "@/services/demoDb";
 import { db, auth, isFirebaseConfigured } from "@/firebase/client";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Hotel, Plus, Loader2, LogOut, Bell, HelpCircle, 
+import {
+  Hotel, Plus, Loader2, LogOut, Bell, HelpCircle,
   MapPin, Calendar, MoreVertical, X, Check, ChevronDown,
-  AlertTriangle, Phone, User, Landmark, Globe 
+  AlertTriangle, Phone, User, Landmark, Globe
 } from "lucide-react";
 
 // Formatter to render dates nicely, e.g. "2026-12-30" -> "30 Dec 2026"
@@ -34,20 +34,20 @@ function formatDate(dateStr: string | null): string {
 function SelectionConsole() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const { setSelectedBusinessId, currentStaff, setCurrentStaff } = useAppStore();
 
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   // Creation States
   const [newHotelName, setNewHotelName] = useState("");
   const [newAdminName, setNewAdminName] = useState("");
   const [newMobileNumber, setNewMobileNumber] = useState("");
   const [newLocation, setNewLocation] = useState("");
   const [newDomain, setNewDomain] = useState("");
-  
+
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +98,7 @@ function SelectionConsole() {
       // Real Firebase Mode: strictly load entries mapped to the logged-in user profile
       const userEmail = firebaseUserEmail || currentStaff?.email;
       const userUid = auth.currentUser?.uid;
-      
+
       if (!userEmail) {
         setBusinesses([]);
         return;
@@ -223,10 +223,10 @@ function SelectionConsole() {
       setNewLocation("");
       setNewDomain("");
       setShowAddModal(false);
-      
+
       // Reload lists
       await loadData();
-      
+
       // Notify user that the business is created but locked until subscription is set
       setError(`Workspace "${newBiz.name}" created successfully, but has been flagged INACTIVE because subscription end date is null. Please configure it inside settings or database.`);
     } catch (err: any) {
@@ -251,28 +251,26 @@ function SelectionConsole() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col justify-between">
-      
+
       {/* 1. TOP HEADER */}
       <header className="h-20 bg-white border-b border-slate-100 px-6 sm:px-12 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-        
+
         {/* LEKA HOTEL logo */}
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-start gap-0.5">
-            <div className="flex items-center gap-0.5 text-amber-500">
+            {/* <div className="flex items-center gap-0.5 text-amber-500">
               {[...Array(5)].map((_, i) => (
                 <svg key={i} className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
-            </div>
-            <div className="flex items-center gap-1.5 -mt-0.5">
-              <div className="w-6 h-6 rounded bg-[#091e3a] flex items-center justify-center text-white">
-                <Hotel className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-sm font-black tracking-tight text-[#091e3a]">LEKA HOTEL</span>
-                <span className="text-[7px] uppercase font-bold text-amber-600 tracking-widest mt-0.5">Hotel</span>
-              </div>
+            </div> */}
+            <div className="flex items-center">
+              <img
+                src="/logo.png"
+                alt="Leka Hotel Logo"
+                className="h-8 w-auto object-contain"
+              />
             </div>
           </div>
         </div>
@@ -292,8 +290,8 @@ function SelectionConsole() {
               className="flex items-center gap-3 p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-left"
             >
               <div className="w-9 h-9 rounded-full bg-blue-100 overflow-hidden border border-slate-200">
-                <img 
-                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=256" 
+                <img
+                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=256"
                   alt="Admin Profile"
                   className="w-full h-full object-cover"
                 />
@@ -332,7 +330,7 @@ function SelectionConsole() {
 
       {/* 2. MAIN CONTENT AREA */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 flex flex-col justify-start">
-        
+
         {/* Welcome and actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -396,15 +394,15 @@ function SelectionConsole() {
           <div className="space-y-4">
             {businesses.map((biz, idx) => {
               const themeProps = rowThemes[idx % rowThemes.length];
-              
+
               // Validate subscription status for row display
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              
+
               const hasNoDate = !biz.subscriptionEndDate;
               const isExpired = biz.subscriptionEndDate ? new Date(biz.subscriptionEndDate) < today : true;
               const isInactive = biz.subscriptionStatus !== "active";
-              
+
               let rowStatus = "active";
               if (hasNoDate || isInactive) rowStatus = "inactive";
               else if (isExpired) rowStatus = "inactive";
@@ -417,11 +415,11 @@ function SelectionConsole() {
               }
 
               // Color mappings based on evaluated state
-              const dateColor = rowStatus === "inactive" 
-                ? "text-rose-500" 
-                : rowStatus === "expiring-soon" 
-                ? "text-amber-500" 
-                : "text-blue-500";
+              const dateColor = rowStatus === "inactive"
+                ? "text-rose-500"
+                : rowStatus === "expiring-soon"
+                  ? "text-amber-500"
+                  : "text-blue-500";
 
               return (
                 <motion.div
@@ -449,7 +447,7 @@ function SelectionConsole() {
 
                   {/* Right segment details */}
                   <div className="flex flex-wrap items-center justify-between md:justify-end gap-6 md:gap-12">
-                    
+
                     {/* Subscription end date */}
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Subscription End Date</span>
@@ -531,8 +529,8 @@ function SelectionConsole() {
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">All created hotels are INACTIVE by default.</p>
                 </div>
-                <button 
-                  onClick={() => setShowAddModal(false)} 
+                <button
+                  onClick={() => setShowAddModal(false)}
                   className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700"
                 >
                   <X className="w-5 h-5" />
@@ -546,7 +544,7 @@ function SelectionConsole() {
               )}
 
               <form onSubmit={handleCreate} className="space-y-4">
-                
+
                 {/* 1. Business Name */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Business Name</label>

@@ -6,8 +6,8 @@ import { authService } from "@/services/auth.service";
 import { useAppStore } from "@/lib/store";
 import { isFirebaseConfigured } from "@/firebase/client";
 import { motion } from "framer-motion";
-import { 
-  Lock, User, Eye, EyeOff, Shield, Zap, CheckCircle2, 
+import {
+  Lock, User, Eye, EyeOff, Shield, Zap, CheckCircle2,
   Hotel, Loader2, Sparkles, AlertCircle
 } from "lucide-react";
 
@@ -17,7 +17,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +41,7 @@ function LoginForm() {
     try {
       await authService.login(email, password);
       const profiles = await authService.getUserStaffProfiles(email);
-      
+
       if (profiles.length > 0) {
         setCurrentStaff(profiles[0]);
         setSelectedBusinessId(profiles[0].businessId);
@@ -84,7 +84,7 @@ function LoginForm() {
 
   return (
     <div className="w-full flex flex-col justify-between min-h-screen p-8 bg-slate-50 text-slate-800 relative">
-      
+
       {/* Top spacing or quick demo trigger helper */}
       <div className="flex justify-end">
         {!isFirebaseConfigured && (
@@ -127,7 +127,7 @@ function LoginForm() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
-            
+
             {/* Username/Email Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700">Username</label>
@@ -250,11 +250,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex bg-slate-950 overflow-hidden font-sans">
-      
+
       {/* Left Column: Background receptionist lobby image & custom LEKA HOTEL details */}
       <div className="hidden lg:block w-[50%] relative h-screen overflow-hidden">
         {/* Background photo */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center transition-transform duration-10000 hover:scale-105"
           style={{ backgroundImage: `url('/reception.png')` }}
         />
@@ -266,21 +266,19 @@ export default function LoginPage() {
           <div>
             {/* Custom Hotel Logo matching LEKA HOTEL logo layout */}
             <div className="flex flex-col items-start gap-1">
-              <div className="flex items-center gap-0.5 text-amber-500 mb-0.5">
+              {/* <div className="flex items-center gap-0.5 text-amber-500 mb-0.5">
                 {[...Array(5)].map((_, i) => (
                   <svg key={i} className="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
                 ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#091e3a] flex items-center justify-center text-white">
-                  <Hotel className="w-4.5 h-4.5" />
-                </div>
-                <div className="flex flex-col leading-none">
-                  <span className="text-xl font-extrabold text-[#091e3a] tracking-tight">LEKA</span>
-                  <span className="text-[10px] uppercase font-bold text-amber-600 tracking-widest mt-0.5">Hotel</span>
-                </div>
+              </div> */}
+              <div className="flex items-center">
+                <img
+                  src="/logo.png"
+                  alt="Leka Hotel Logo"
+                  className="h-10 w-auto object-contain"
+                />
               </div>
             </div>
 
