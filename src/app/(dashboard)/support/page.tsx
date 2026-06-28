@@ -13,32 +13,32 @@ import {
 
 const SupportIllustration = () => (
   <svg viewBox="0 0 200 200" className="w-20 h-20 sm:w-24 sm:h-24 text-blue-600 shrink-0" fill="none">
-    {/* Soft blue background circle */}
-    <circle cx="100" cy="100" r="80" fill="#f0f7ff" />
+    {/* Soft primary background circle */}
+    <circle cx="100" cy="100" r="80" fill="#f1effd" />
     
     {/* Decorative leaves/dots */}
-    <path d="M45 110c-5-5-10 0-10 10s10 15 15 5c5-5 5-20-5-15z" fill="#dbeafe" />
-    <path d="M35 85c-3-6-9-3-11 5s3 15 10 9c7-6 4-20 1-14z" fill="#dbeafe" />
-    <path d="M155 110c5-5 10 0 10 10s-10 15-15 5c-5-5-5-20 5-15z" fill="#dbeafe" />
-    <path d="M165 85c3-6 9-3 11 5s-3 15-10 9c-7-6-4-20-1-14z" fill="#dbeafe" />
+    <path d="M45 110c-5-5-10 0-10 10s10 15 15 5c5-5 5-20-5-15z" fill="#e4dffa" />
+    <path d="M35 85c-3-6-9-3-11 5s3 15 10 9c7-6 4-20 1-14z" fill="#e4dffa" />
+    <path d="M155 110c5-5 10 0 10 10s-10 15-15 5c-5-5-5-20 5-15z" fill="#e4dffa" />
+    <path d="M165 85c3-6 9-3 11 5s-3 15-10 9c-7-6-4-20-1-14z" fill="#e4dffa" />
     
     {/* Headset Arc */}
-    <path d="M60 100c0-22 18-40 40-40s40 18 40 40" stroke="#2563eb" strokeWidth="6" strokeLinecap="round" />
+    <path d="M60 100c0-22 18-40 40-40s40 18 40 40" stroke="#6646e2" strokeWidth="6" strokeLinecap="round" />
     
     {/* Left Earpad */}
-    <rect x="52" y="90" width="16" height="28" rx="8" fill="#1d4ed8" />
-    <rect x="46" y="95" width="6" height="18" rx="3" fill="#3b82f6" />
+    <rect x="52" y="90" width="16" height="28" rx="8" fill="#4427a3" />
+    <rect x="46" y="95" width="6" height="18" rx="3" fill="#7756f7" />
     
     {/* Right Earpad */}
-    <rect x="132" y="90" width="16" height="28" rx="8" fill="#1d4ed8" />
-    <rect x="148" y="95" width="6" height="18" rx="3" fill="#3b82f6" />
+    <rect x="132" y="90" width="16" height="28" rx="8" fill="#4427a3" />
+    <rect x="148" y="95" width="6" height="18" rx="3" fill="#7756f7" />
     
     {/* Microphone Arm */}
-    <path d="M140 110c0 15-15 25-30 25" stroke="#2563eb" strokeWidth="4" strokeLinecap="round" fill="none" />
-    <circle cx="110" cy="135" r="5" fill="#1d4ed8" />
+    <path d="M140 110c0 15-15 25-30 25" stroke="#6646e2" strokeWidth="4" strokeLinecap="round" fill="none" />
+    <circle cx="110" cy="135" r="5" fill="#4427a3" />
     
     {/* Chat Bubble overlay */}
-    <path d="M90 85h20c5.5 0 10 4.5 10 10v10c0 5.5-4.5 10-10 10h-5l-8 8v-8h-7c-5.5 0-10-4.5-10-10V95c0-5.5 4.5-10 10-10z" fill="#2563eb" />
+    <path d="M90 85h20c5.5 0 10 4.5 10 10v10c0 5.5-4.5 10-10 10h-5l-8 8v-8h-7c-5.5 0-10-4.5-10-10V95c0-5.5 4.5-10 10-10z" fill="#6646e2" />
     {/* Three dots in chat bubble */}
     <circle cx="95" cy="95" r="2" fill="white" />
     <circle cx="100" cy="95" r="2" fill="white" />

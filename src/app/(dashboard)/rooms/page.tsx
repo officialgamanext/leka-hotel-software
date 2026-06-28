@@ -749,17 +749,17 @@ export default function RoomsPage() {
                 );
               } 
               else if (room.status === "cleaning") {
-                borderStyle = "border-[#dbeafe] hover:border-[#bfdbfe]";
-                cardBg = "bg-[#f8faff]";
-                roomNumColor = "text-[#2563eb]";
-                statusPill = "bg-[#eff6ff] text-[#2563eb] border border-transparent";
+                borderStyle = "border-[#e4dffa] hover:border-[#ccc3f7]";
+                cardBg = "bg-[#f1effd]";
+                roomNumColor = "text-[#6646e2]";
+                statusPill = "bg-[#f1effd] text-[#6646e2] border border-transparent";
                 footerBlock = (
                   <div className="flex flex-col gap-2 mt-4">
-                    <div className="flex items-center gap-3 p-3.5 bg-[#dbeafe] border border-[#bfdbfe]/30 rounded-2xl">
-                      <Paintbrush className="w-5 h-5 text-[#2563eb] shrink-0" />
+                    <div className="flex items-center gap-3 p-3.5 bg-[#e4dffa] border border-[#ccc3f7]/30 rounded-2xl">
+                      <Paintbrush className="w-5 h-5 text-[#6646e2] shrink-0" />
                       <div>
-                        <h4 className="text-[11px] font-bold text-[#1e40af] leading-none">Under Cleaning</h4>
-                        <span className="text-[9.5px] text-[#1d4ed8] block mt-1 font-medium font-sans">Please wait</span>
+                        <h4 className="text-[11px] font-bold text-[#4427a3] leading-none">Under Cleaning</h4>
+                        <span className="text-[9.5px] text-[#5435c4] block mt-1 font-medium font-sans">Please wait</span>
                       </div>
                     </div>
                     <button 

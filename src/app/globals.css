@@ -8,6 +8,18 @@
 }
 
 @theme inline {
+  --color-blue-50: #f1effd;
+  --color-blue-100: #e4dffa;
+  --color-blue-200: #ccc3f7;
+  --color-blue-300: #aa9df2;
+  --color-blue-400: #8673eb;
+  --color-blue-500: #7756f7;
+  --color-blue-600: #6646e2;
+  --color-blue-700: #5435c4;
+  --color-blue-800: #4427a3;
+  --color-blue-900: #382085;
+  --color-blue-950: #221257;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

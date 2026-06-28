@@ -12,9 +12,9 @@ import {
 
 const MaleAvatar = () => (
   <svg viewBox="0 0 40 40" className="w-full h-full" fill="none">
-    <circle cx="20" cy="20" r="20" fill="#dbeafe" />
-    <circle cx="20" cy="15" r="7" fill="#3b82f6" />
-    <path d="M6 38c0-7.732 6.268-14 14-14s14 6.268 14 14" fill="#3b82f6" />
+    <circle cx="20" cy="20" r="20" fill="#e4dffa" />
+    <circle cx="20" cy="15" r="7" fill="#6646e2" />
+    <path d="M6 38c0-7.732 6.268-14 14-14s14 6.268 14 14" fill="#6646e2" />
   </svg>
 );
 
