@@ -241,8 +241,8 @@ export default function InvestmentsPage() {
             <p className="text-[10px] font-bold">No investment records found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-semibold">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full min-w-[550px] text-left text-xs font-semibold">
               <thead>
                 <tr className="text-slate-450 border-b border-slate-100 uppercase tracking-wide text-[9px]">
                   <th className="pb-3 font-bold">Investment Name / Description</th>

@@ -152,7 +152,7 @@ export default function ReportsPage() {
         </head>
         <body>
           <div style="width: 100%; max-width: 800px; margin: 0 auto;">
-            ${printContent.innerHTML}
+            ${printContent.outerHTML}
           </div>
           <script>
             window.onload = function() {
@@ -173,19 +173,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto font-sans relative">
 
-      <style jsx global>{`
-        @media print {
-          body * { visibility: hidden; }
-          #printable-invoice-sheet, #printable-invoice-sheet * { visibility: visible; }
-          #printable-invoice-sheet {
-            position: absolute; left: 0; top: 0;
-            width: 210mm; min-height: 297mm;
-            padding: 20mm !important;
-            box-shadow: none !important; border: none !important;
-            background: white !important; color: black !important;
-          }
-        }
-      `}</style>
+
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
@@ -261,8 +249,8 @@ export default function ReportsPage() {
             <p className="text-[10px] font-bold">No payments found for this period</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-semibold">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full min-w-[750px] text-left text-xs font-semibold">
               <thead>
                 <tr className="text-slate-450 border-b border-slate-100 uppercase tracking-wide text-[9px]">
                   <th className="pb-3 font-bold">Invoice ID</th>
