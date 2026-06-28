@@ -10,6 +10,8 @@ import {
   Hotel, BellRing, ChevronDown, CheckCircle, 
   Loader2, Sparkles, AlertCircle
 } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/dropdown";
+import { useToast } from "@/context/ToastContext";
 
 function RaiseRequestContent() {
   const searchParams = useSearchParams();
@@ -26,6 +28,7 @@ function RaiseRequestContent() {
   const [detailedIssue, setDetailedIssue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     async function loadHotelAndServices() {
@@ -52,7 +55,7 @@ function RaiseRequestContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roomNumber.trim() || !selectedService || !detailedIssue.trim()) {
-      alert("Please fill out all fields.");
+      toast.warning("Please fill out all fields.");
       return;
     }
 
@@ -66,9 +69,10 @@ function RaiseRequestContent() {
       });
       setSuccess(true);
       setDetailedIssue("");
+      toast.success("Request submitted successfully!");
     } catch (err) {
       console.error("Failed to submit guest request:", err);
-      alert("Failed to submit request. Please try again or call reception.");
+      toast.error("Failed to submit request. Please try again or call reception.");
     } finally {
       setSubmitting(false);
     }
@@ -150,22 +154,14 @@ function RaiseRequestContent() {
               {/* Service selection dropdown */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-wide">Select Service</label>
-                <div className="relative">
-                  <select
-                    value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full appearance-none bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-3 rounded-xl text-xs outline-none transition-all cursor-pointer font-bold"
-                  >
-                    {services.length === 0 ? (
-                      <option value="">-- No services configured --</option>
-                    ) : (
-                      services.map((srv) => (
-                        <option key={srv.id} value={srv.name}>{srv.name}</option>
-                      ))
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-3.5 pointer-events-none" />
-                </div>
+                <CustomDropdown
+                  value={selectedService}
+                  onChange={setSelectedService}
+                  options={services.map((srv) => ({ value: srv.name, label: srv.name }))}
+                  placeholder={services.length === 0 ? "No services configured" : "Select Service"}
+                  disabled={services.length === 0}
+                  triggerClassName="bg-slate-50/50 border-slate-200 py-3"
+                />
               </div>
 
               {/* Issue details text area */}

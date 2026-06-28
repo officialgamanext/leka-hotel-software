@@ -11,6 +11,9 @@ import {
   BellRing, Plus, Loader2, Sparkles, X, Filter, 
   Trash2, Check, Clock, Play, Layers, ChevronDown, ShieldAlert
 } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/dropdown";
+import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 // Helper to format timestamps nicely
 function formatDateTime(dateTimeStr: string): string {
@@ -36,6 +39,8 @@ function formatDateTime(dateTimeStr: string): string {
 
 export default function RequestsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const toast = useToast();
+  const confirm = useConfirm();
 
   // Data State
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -107,9 +112,10 @@ export default function RequestsPage() {
       await loadData();
       setNewServiceName("");
       setShowAddServiceModal(false);
+      toast.success("Service category added successfully!");
     } catch (err) {
       console.error(err);
-      alert("Failed to add service.");
+      toast.error("Failed to add service.");
     } finally {
       setSubmittingService(false);
     }
@@ -117,12 +123,18 @@ export default function RequestsPage() {
 
   // Delete Service Type Category
   const handleDeleteService = async (sId: string) => {
-    if (!confirm("Are you sure you want to delete this service type?")) return;
+    if (!await confirm({
+      title: "Delete Service Category",
+      message: "Are you sure you want to delete this service type?",
+      variant: "danger"
+    })) return;
     try {
       await requestService.deleteService(selectedBusinessId, sId);
       await loadData();
+      toast.success("Service category deleted successfully!");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to delete service category.");
     }
   };
 
@@ -130,7 +142,7 @@ export default function RequestsPage() {
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRoomNumber || !selectedServiceName || !requestIssue.trim()) {
-      alert("Please enter all details.");
+      toast.warning("Please enter all details.");
       return;
     }
 
@@ -144,9 +156,10 @@ export default function RequestsPage() {
       });
       setRequestIssue("");
       setShowAddRequestModal(false);
+      toast.success("Service request created successfully!");
     } catch (err) {
       console.error(err);
-      alert("Failed to save request.");
+      toast.error("Failed to save request.");
     } finally {
       setSubmittingRequest(false);
     }
@@ -156,18 +169,26 @@ export default function RequestsPage() {
   const handleStatusChange = async (reqId: string, nextStatus: "pending" | "in-progress" | "completed") => {
     try {
       await requestService.updateRequestStatus(selectedBusinessId, reqId, nextStatus);
+      toast.success(`Request status updated to ${nextStatus === "in-progress" ? "In Progress" : nextStatus}!`);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update status.");
     }
   };
 
   // Delete Request log
   const handleDeleteRequest = async (reqId: string) => {
-    if (!confirm("Are you sure you want to delete this request record?")) return;
+    if (!await confirm({
+      title: "Delete Request Log",
+      message: "Are you sure you want to delete this request record?",
+      variant: "danger"
+    })) return;
     try {
       await requestService.deleteRequest(selectedBusinessId, reqId);
+      toast.success("Request log deleted successfully!");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to delete request.");
     }
   };
 
@@ -512,35 +533,21 @@ export default function RequestsPage() {
                   {/* Select Room */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Room Number</label>
-                    <div className="relative">
-                      <select
-                        value={selectedRoomNumber}
-                        onChange={(e) => setSelectedRoomNumber(e.target.value)}
-                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-xs outline-none cursor-pointer"
-                      >
-                        {rooms.map((rm) => (
-                          <option key={rm.id} value={rm.roomNumber}>Room {rm.roomNumber} ({rm.type})</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                    </div>
+                    <CustomDropdown
+                      value={selectedRoomNumber}
+                      onChange={setSelectedRoomNumber}
+                      options={rooms.map((rm) => ({ value: rm.roomNumber, label: `Room ${rm.roomNumber} (${rm.type})` }))}
+                    />
                   </div>
 
                   {/* Select Service Type */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Category</label>
-                    <div className="relative">
-                      <select
-                        value={selectedServiceName}
-                        onChange={(e) => setSelectedServiceName(e.target.value)}
-                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-xs outline-none cursor-pointer"
-                      >
-                        {services.map((srv) => (
-                          <option key={srv.id} value={srv.name}>{srv.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                    </div>
+                    <CustomDropdown
+                      value={selectedServiceName}
+                      onChange={setSelectedServiceName}
+                      options={services.map((srv) => ({ value: srv.name, label: srv.name }))}
+                    />
                   </div>
 
                   {/* Text details */}

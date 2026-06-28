@@ -13,6 +13,9 @@ import {
   Wrench, Layers, CreditCard, Compass, Check, BedDouble, 
   Hotel, Users, Phone, Mail, Edit3, Save, Calendar, Sparkles, Download
 } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/dropdown";
+import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 // Date formatting helper
 function formatDateTime(dateTimeStr: string | null | undefined): string {
@@ -102,6 +105,8 @@ const FemaleAvatar = () => (
 
 export default function RoomsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [floors, setFloors] = useState<number[]>([]);
@@ -176,6 +181,7 @@ export default function RoomsPage() {
   const [guestEmail, setGuestEmail] = useState("");
   const [additionalMembers, setAdditionalMembers] = useState<any[]>([]);
   const [submittingCheckIn, setSubmittingCheckIn] = useState(false);
+  const [submittingCheckOut, setSubmittingCheckOut] = useState(false);
 
   // Refresh catalogs
   const loadLists = async () => {
@@ -238,9 +244,11 @@ export default function RoomsPage() {
     try {
       await roomService.addFloor(selectedBusinessId, newFloorNumber);
       await loadLists();
+      toast.success(`Floor ${newFloorNumber} added successfully!`);
       setNewFloorNumber(prev => prev + 1);
     } catch (err) {
       console.error("Floor creation failed:", err);
+      toast.error("Failed to add floor.");
     } finally {
       setSubmittingFloor(false);
     }
@@ -248,12 +256,18 @@ export default function RoomsPage() {
 
   // Delete Floor Submit
   const handleDeleteFloor = async (fNum: number) => {
-    if (!confirm(`Are you sure you want to delete Floor ${fNum}?`)) return;
+    if (!await confirm({
+      title: "Delete Floor",
+      message: `Are you sure you want to delete Floor ${fNum}? All rooms on this floor will be deleted.`,
+      variant: "danger"
+    })) return;
     try {
       await roomService.deleteFloor(selectedBusinessId, fNum);
       await loadLists();
+      toast.success(`Floor ${fNum} deleted successfully!`);
     } catch (err) {
       console.error("Floor deletion failed:", err);
+      toast.error("Failed to delete floor.");
     }
   };
 
@@ -267,15 +281,18 @@ export default function RoomsPage() {
         // Edit Mode
         await roomService.editRoomType(selectedBusinessId, editingTypeOldName, newTypeName.trim(), newTypePrice);
         setEditingTypeOldName(null);
+        toast.success("Room type updated successfully!");
       } else {
         // Add Mode
         await roomService.addRoomType(selectedBusinessId, newTypeName.trim(), newTypePrice);
+        toast.success("Room type added successfully!");
       }
       await loadLists();
       setNewTypeName("");
       setNewTypePrice(1500);
     } catch (err) {
       console.error("Room type database action failed:", err);
+      toast.error("Failed to save room type.");
     } finally {
       setSubmittingType(false);
     }
@@ -283,12 +300,18 @@ export default function RoomsPage() {
 
   // Delete Room Type
   const handleDeleteType = async (tName: string) => {
-    if (!confirm(`Are you sure you want to delete "${tName}" room type?`)) return;
+    if (!await confirm({
+      title: "Delete Room Type",
+      message: `Are you sure you want to delete "${tName}" room type?`,
+      variant: "danger"
+    })) return;
     try {
       await roomService.deleteRoomType(selectedBusinessId, tName);
       await loadLists();
+      toast.success("Room type deleted successfully!");
     } catch (err) {
       console.error("Room type deletion failed:", err);
+      toast.error("Failed to delete room type.");
     }
   };
 
@@ -310,8 +333,10 @@ export default function RoomsPage() {
       });
       setShowAddRoomModal(false);
       setNewRoomNumber("");
+      toast.success(`Room ${newRoomNumber} created successfully!`);
     } catch (err) {
       console.error("Room creation failed:", err);
+      toast.error("Failed to create room.");
     } finally {
       setSubmittingRoom(false);
     }
@@ -340,8 +365,10 @@ export default function RoomsPage() {
         pricePerNight: Number(editRoomPrice)
       });
       setShowEditRoomModal(null);
+      toast.success(`Room ${editRoomNumber} updated successfully!`);
     } catch (err) {
       console.error("Room edit failed:", err);
+      toast.error("Failed to update room.");
     } finally {
       setSubmittingEditRoom(false);
     }
@@ -350,11 +377,17 @@ export default function RoomsPage() {
   // Delete Room Trigger
   const handleDeleteRoomTrigger = async (e: React.MouseEvent, room: Room) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete Room ${room.roomNumber}?`)) return;
+    if (!await confirm({
+      title: "Delete Room",
+      message: `Are you sure you want to delete Room ${room.roomNumber}? This cannot be undone.`,
+      variant: "danger"
+    })) return;
     try {
       await roomService.deleteRoom(selectedBusinessId, room.id, room.status);
+      toast.success(`Room ${room.roomNumber} deleted successfully!`);
     } catch (err) {
       console.error("Room delete failed:", err);
+      toast.error("Failed to delete room.");
     }
   };
 
@@ -362,7 +395,7 @@ export default function RoomsPage() {
   const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showCheckInModal || !headName.trim() || !guestPhone1.trim() || !checkInTime || !checkOutTime) {
-      alert("Please fill in dates, primary occupant name, and Mobile Number 1.");
+      toast.warning("Please fill in dates, primary occupant name, and Mobile Number 1.");
       return;
     }
 
@@ -409,6 +442,8 @@ export default function RoomsPage() {
         lastCheckIn: checkInTime,
       });
       
+      toast.success(`Guest ${headName} checked in to Room ${showCheckInModal.roomNumber}!`);
+
       // Clear inputs
       setHeadName("");
       setGuestPhone1("");
@@ -420,7 +455,7 @@ export default function RoomsPage() {
       setShowCheckInModal(null);
     } catch (err) {
       console.error("Check-in failed:", err);
-      alert("Failed to check in guest.");
+      toast.error("Failed to check in guest.");
     } finally {
       setSubmittingCheckIn(false);
     }
@@ -428,7 +463,13 @@ export default function RoomsPage() {
 
   // Check Out Submit
   const handleCheckOut = async (room: Room, amount: number, method: string) => {
-    if (!confirm(`Confirm check-out for Room ${room.roomNumber}? Total Amount: ₹${amount.toLocaleString()} via ${method}`)) return;
+    if (!await confirm({
+      title: "Confirm Check-Out",
+      message: `Confirm check-out for Room ${room.roomNumber}? Total Amount: ₹${amount.toLocaleString()} via ${method}`,
+      variant: "info",
+      confirmText: "Check Out"
+    })) return;
+    setSubmittingCheckOut(true);
     try {
       const checkOutDateStr = new Date().toISOString().split("T")[0];
       const checkInDate = new Date(room.checkInTime || new Date());
@@ -468,11 +509,15 @@ export default function RoomsPage() {
       // Transition room back to available immediately
       await roomService.checkOutRoom(selectedBusinessId, room.id);
       
+      toast.success(`Room ${room.roomNumber} checkout complete! Invoice saved.`);
+
       // Close details modal
       setShowDetailModal(null);
     } catch (err) {
       console.error("Checkout failed:", err);
-      alert("Failed to checkout room.");
+      toast.error("Failed to checkout room.");
+    } finally {
+      setSubmittingCheckOut(false);
     }
   };
 
@@ -566,50 +611,42 @@ export default function RoomsPage() {
       {/* 2. FILTER DROPDOWNS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          
-          <div className="relative">
-            <select
-              value={floorFilter}
-              onChange={(e) => setFloorFilter(e.target.value)}
-              className="appearance-none bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-700 pl-4 pr-9 py-2 rounded-xl focus:border-blue-500 outline-none transition-colors cursor-pointer min-w-[120px]"
-            >
-              <option value="all">All Floors</option>
-              {floors.map((f) => (
-                <option key={f} value={f}>Floor {f}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-          </div>
+                   <CustomDropdown
+            value={floorFilter}
+            onChange={setFloorFilter}
+            options={[
+              { value: "all", label: "All Floors" },
+              ...floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))
+            ]}
+            className="w-[130px]"
+            triggerClassName="bg-slate-50/50 border-slate-200"
+          />
 
-          <div className="relative">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="appearance-none bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-700 pl-4 pr-9 py-2 rounded-xl focus:border-blue-500 outline-none transition-colors cursor-pointer min-w-[140px]"
-            >
-              <option value="all">All Room Types</option>
-              {roomTypes.map((t) => (
-                <option key={t.name} value={t.name}>{t.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { value: "all", label: "All Room Types" },
+              ...roomTypes.map((t) => ({ value: t.name, label: t.name }))
+            ]}
+            className="w-[150px]"
+            triggerClassName="bg-slate-50/50 border-slate-200"
+          />
 
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-slate-50/50 border border-slate-200 text-xs font-bold text-slate-700 pl-4 pr-9 py-2 rounded-xl focus:border-blue-500 outline-none transition-colors cursor-pointer min-w-[130px]"
-            >
-              <option value="all">All Status</option>
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="near-checkout">Near Checkout</option>
-              <option value="cleaning">Cleaning</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All Status" },
+              { value: "available", label: "Available" },
+              { value: "occupied", label: "Occupied" },
+              { value: "near-checkout", label: "Near Checkout" },
+              { value: "cleaning", label: "Cleaning" },
+              { value: "maintenance", label: "Maintenance" }
+            ]}
+            className="w-[140px]"
+            triggerClassName="bg-slate-50/50 border-slate-200"
+          />
 
         </div>
 
@@ -917,38 +954,24 @@ export default function RoomsPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Floor Selection</label>
-                  <div className="relative">
-                    <select
-                      value={editRoomFloor}
-                      onChange={(e) => setEditRoomFloor(Number(e.target.value))}
-                      className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-sm transition-all outline-none cursor-pointer"
-                    >
-                      {floors.map((f) => (
-                        <option key={f} value={f}>Floor {f}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                  </div>
+                  <CustomDropdown
+                    value={editRoomFloor}
+                    onChange={(val) => setEditRoomFloor(Number(val))}
+                    options={floors.map((f) => ({ value: f, label: `Floor ${f}` }))}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Room Type Category</label>
-                  <div className="relative">
-                    <select
-                      value={editRoomType}
-                      onChange={(e) => {
-                        setEditRoomType(e.target.value);
-                        const typeObj = roomTypes.find(t => t.name === e.target.value);
-                        if (typeObj) setEditRoomPrice(typeObj.price);
-                      }}
-                      className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-sm transition-all outline-none cursor-pointer"
-                    >
-                      {roomTypes.map((t) => (
-                        <option key={t.name} value={t.name}>{t.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                  </div>
+                  <CustomDropdown
+                    value={editRoomType}
+                    onChange={(val) => {
+                      setEditRoomType(val);
+                      const typeObj = roomTypes.find(t => t.name === val);
+                      if (typeObj) setEditRoomPrice(typeObj.price);
+                    }}
+                    options={roomTypes.map((t) => ({ value: t.name, label: t.name }))}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -1029,34 +1052,20 @@ export default function RoomsPage() {
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Floor Selection</label>
-                    <div className="relative">
-                      <select
-                        value={selectedFloor}
-                        onChange={(e) => setSelectedFloor(Number(e.target.value))}
-                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-sm transition-all outline-none cursor-pointer"
-                      >
-                        {floors.map((f) => (
-                          <option key={f} value={f}>Floor {f}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                    </div>
+                    <CustomDropdown
+                      value={selectedFloor}
+                      onChange={(val) => setSelectedFloor(Number(val))}
+                      options={floors.map((f) => ({ value: f, label: `Floor ${f}` }))}
+                    />
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Room Type Category</label>
-                    <div className="relative">
-                      <select
-                        value={selectedType}
-                        onChange={(e) => setSelectedType(e.target.value)}
-                        className="w-full appearance-none bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-3.5 py-2 rounded-lg text-sm transition-all outline-none cursor-pointer"
-                      >
-                        {roomTypes.map((t) => (
-                          <option key={t.name} value={t.name}>{t.name} (₹{t.price.toLocaleString()})</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                    </div>
+                    <CustomDropdown
+                      value={selectedType}
+                      onChange={setSelectedType}
+                      options={roomTypes.map((t) => ({ value: t.name, label: `${t.name} (₹${t.price.toLocaleString()})` }))}
+                    />
                   </div>
 
                   <div className="flex gap-3 pt-3 border-t border-slate-100">
@@ -1423,18 +1432,16 @@ export default function RoomsPage() {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Gender</label>
-                      <div className="relative">
-                        <select
-                          value={headGender}
-                          onChange={(e) => setHeadGender(e.target.value)}
-                          className="w-full appearance-none bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none cursor-pointer"
-                        >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-2.5 pointer-events-none" />
-                      </div>
+                      <CustomDropdown
+                        value={headGender}
+                        onChange={setHeadGender}
+                        options={[
+                          { value: "Male", label: "Male" },
+                          { value: "Female", label: "Female" },
+                          { value: "Other", label: "Other" }
+                        ]}
+                        triggerClassName="bg-slate-50/50 border-slate-200"
+                      />
                     </div>
                   </div>
 
@@ -1484,19 +1491,17 @@ export default function RoomsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Government ID Type</label>
-                      <div className="relative">
-                        <select
-                          value={headGovIdType}
-                          onChange={(e) => setHeadGovIdType(e.target.value)}
-                          className="w-full appearance-none bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none cursor-pointer"
-                        >
-                          <option value="Aadhaar Card">Aadhaar Card</option>
-                          <option value="PAN Card">PAN Card</option>
-                          <option value="Voter ID">Voter ID</option>
-                          <option value="Passport">Passport</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-2.5 pointer-events-none" />
-                      </div>
+                      <CustomDropdown
+                        value={headGovIdType}
+                        onChange={setHeadGovIdType}
+                        options={[
+                          { value: "Aadhaar Card", label: "Aadhaar Card" },
+                          { value: "PAN Card", label: "PAN Card" },
+                          { value: "Voter ID", label: "Voter ID" },
+                          { value: "Passport", label: "Passport" }
+                        ]}
+                        triggerClassName="bg-slate-50/50 border-slate-200"
+                      />
                     </div>
 
                     <div className="space-y-1.5">
@@ -1575,31 +1580,33 @@ export default function RoomsPage() {
                             </div>
                             <div className="space-y-1">
                               <label className="text-[9px] font-bold text-slate-450 uppercase">Gender</label>
-                              <select
+                              <CustomDropdown
                                 value={member.gender}
-                                onChange={(e) => updateMemberField(idx, "gender", e.target.value)}
-                                className="w-full bg-white border border-slate-250 text-xs px-2.5 py-1.5 rounded-lg outline-none cursor-pointer"
-                              >
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                              </select>
+                                onChange={(val) => updateMemberField(idx, "gender", val)}
+                                options={[
+                                  { value: "Male", label: "Male" },
+                                  { value: "Female", label: "Female" },
+                                  { value: "Other", label: "Other" }
+                                ]}
+                                triggerClassName="border-slate-250 py-1.5 px-2.5 rounded-lg"
+                              />
                             </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3.5">
                             <div className="space-y-1">
                               <label className="text-[9px] font-bold text-slate-450 uppercase">Gov ID Type</label>
-                              <select
+                              <CustomDropdown
                                 value={member.govIdType}
-                                onChange={(e) => updateMemberField(idx, "govIdType", e.target.value)}
-                                className="w-full bg-white border border-slate-250 text-xs px-2.5 py-1.5 rounded-lg outline-none cursor-pointer"
-                              >
-                                <option value="Aadhaar Card">Aadhaar Card</option>
-                                <option value="PAN Card">PAN Card</option>
-                                <option value="Voter ID">Voter ID</option>
-                                <option value="Passport">Passport</option>
-                              </select>
+                                onChange={(val) => updateMemberField(idx, "govIdType", val)}
+                                options={[
+                                  { value: "Aadhaar Card", label: "Aadhaar Card" },
+                                  { value: "PAN Card", label: "PAN Card" },
+                                  { value: "Voter ID", label: "Voter ID" },
+                                  { value: "Passport", label: "Passport" }
+                                ]}
+                                triggerClassName="border-slate-250 py-1.5 px-2.5 rounded-lg"
+                              />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[9px] font-bold text-slate-450 uppercase">ID Number</label>
@@ -1906,11 +1913,18 @@ export default function RoomsPage() {
                         </button>
                         <button
                           type="button"
-                          disabled={!paymentMethod}
+                          disabled={!paymentMethod || submittingCheckOut}
                           onClick={() => handleCheckOut(showDetailModal, totalCost, paymentMethod)}
                           className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99] flex items-center justify-center gap-1.5"
                         >
-                          Check Out Room
+                          {submittingCheckOut ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Checking Out...</span>
+                            </>
+                          ) : (
+                            <span>Check Out Room</span>
+                          )}
                         </button>
                       </div>
 

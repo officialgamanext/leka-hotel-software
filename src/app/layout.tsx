@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-provider";
+import { ToastProvider } from "@/context/ToastContext";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 
 export const metadata: Metadata = {
   title: "Leka Hotel - Premium Hotel SaaS Management Suite",
@@ -60,7 +62,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-slate-950 text-slate-100 font-sans">
         <QueryProvider>
-          {children}
+          <ToastProvider>
+            <ConfirmProvider>
+              {children}
+            </ConfirmProvider>
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

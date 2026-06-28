@@ -11,6 +11,9 @@ import {
   DollarSign, Receipt, Clock, Printer, X, Eye,
   Loader2, ArrowRight, CheckCircle2, ChevronDown
 } from "lucide-react";
+import { CustomDropdown } from "@/components/ui/dropdown";
+import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 type DateFilterType = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom" | "all";
 
@@ -47,6 +50,8 @@ function isDateInRange(dateStr: string, filter: DateFilterType, customStart?: st
 
 export default function ReportsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const toast = useToast();
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pendingAmount, setPendingAmount] = useState(0);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -98,7 +103,72 @@ export default function ReportsPage() {
     return inv.subtotal + gst;
   };
 
-  const handlePrintBill = () => { if (typeof window !== "undefined") window.print(); };
+  const handlePrintBill = () => {
+    if (typeof window === "undefined") return;
+    const printContent = document.getElementById("printable-invoice-sheet");
+    if (!printContent) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!doc) return;
+
+    // Collect all stylesheet elements from parent window
+    let stylesHtml = "";
+    document.querySelectorAll("link[rel='stylesheet'], style").forEach((styleEl) => {
+      stylesHtml += styleEl.outerHTML;
+    });
+
+    doc.open();
+    doc.write(`
+      <html>
+        <head>
+          <title>Print Invoice</title>
+          ${stylesHtml}
+          <style>
+            body {
+              background: white !important;
+              color: black !important;
+              padding: 20px !important;
+              margin: 0 !important;
+            }
+            #printable-invoice-sheet {
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+              margin: 0 auto !important;
+              max-width: 100% !important;
+            }
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="width: 100%; max-width: 800px; margin: 0 auto;">
+            ${printContent.innerHTML}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                  window.parent.document.body.removeChild(window.frameElement);
+                }, 500);
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    doc.close();
+  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto font-sans relative">
@@ -133,20 +203,21 @@ export default function ReportsPage() {
                 className="bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none" />
             </div>
           )}
-          <div className="relative">
-            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilterType)}
-              className="appearance-none bg-white border border-slate-200 text-xs font-bold text-slate-750 pl-4 pr-9 py-2.5 rounded-xl outline-none cursor-pointer hover:border-slate-350 transition-colors">
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="this-week">This Week</option>
-              <option value="last-week">Last Week</option>
-              <option value="this-month">This Month</option>
-              <option value="last-month">Last Month</option>
-              <option value="custom">Custom Date Range</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            value={dateFilter}
+            onChange={(val) => setDateFilter(val as DateFilterType)}
+            options={[
+              { value: "all", label: "All Dates" },
+              { value: "today", label: "Today" },
+              { value: "yesterday", label: "Yesterday" },
+              { value: "this-week", label: "This Week" },
+              { value: "last-week", label: "Last Week" },
+              { value: "this-month", label: "This Month" },
+              { value: "last-month", label: "Last Month" },
+              { value: "custom", label: "Custom Date Range" }
+            ]}
+            className="w-[170px]"
+          />
         </div>
       </div>
 
@@ -235,31 +306,31 @@ export default function ReportsPage() {
       {/* A4 Bill Modal */}
       <AnimatePresence>
         {selectedInvoice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 overflow-y-auto pt-10 pb-10">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4 overflow-y-auto pt-10 pb-10">
             <div className="absolute inset-0" onClick={() => setSelectedInvoice(null)} />
-            <div className="w-full max-w-[800px] bg-slate-900 p-4 rounded-3xl shadow-2xl relative z-10 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="w-full max-w-[800px] bg-slate-50 p-4 border border-slate-200 rounded-3xl shadow-2xl relative z-10 space-y-4 max-h-[92vh] flex flex-col">
 
               {/* Controls */}
-              <div className="flex justify-between items-center bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-slate-400 shrink-0">
-                <span className="text-xs font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Invoice Preview
+              <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 text-slate-700 shrink-0 shadow-sm">
+                <span className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
+                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" /> Guest Invoice Preview
                 </span>
                 <div className="flex items-center gap-2">
                   <button onClick={handlePrintBill}
-                    className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors">
+                    className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer">
                     <Printer className="w-3.5 h-3.5" /> Print Bill (A4)
                   </button>
                   <button onClick={() => setSelectedInvoice(null)}
-                    className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors">
+                    className="p-1.5 hover:bg-slate-100 text-slate-450 hover:text-slate-800 rounded-xl transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
 
-              {/* A4 Sheet */}
-              <div className="overflow-y-auto flex-1 p-2 bg-slate-800/40 rounded-2xl">
+              {/* A4 Sheet Container */}
+              <div className="overflow-y-auto flex-1 p-2 bg-white/40 border border-slate-200/50 rounded-2xl">
                 <div id="printable-invoice-sheet"
-                  className="w-full bg-white text-slate-800 p-8 sm:p-12 shadow-inner border border-slate-200 font-sans space-y-8 rounded-2xl mx-auto max-w-[700px]">
+                  className="w-full bg-white text-slate-800 p-8 sm:p-12 border border-slate-200/80 font-sans space-y-8 rounded-2xl mx-auto max-w-[700px] shadow-sm">
 
                   {/* Header */}
                   <div className="flex justify-between items-start border-b border-slate-200 pb-6">

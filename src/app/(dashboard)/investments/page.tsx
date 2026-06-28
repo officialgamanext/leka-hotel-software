@@ -9,6 +9,8 @@ import {
   Trash2, Filter, AlertCircle, ChevronDown, CheckCircle2, ArrowRight
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { CustomDropdown } from "@/components/ui/dropdown";
+import { useToast } from "@/context/ToastContext";
 
 type DateFilterType = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom" | "all";
 
@@ -45,6 +47,7 @@ function isDateInRange(dateStr: string, filter: DateFilterType, customStart?: st
 
 export default function InvestmentsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const toast = useToast();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -87,7 +90,7 @@ export default function InvestmentsPage() {
   const handleSaveInvestment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !amount || !date) {
-      alert("Please fill all required fields.");
+      toast.warning("Please fill all required fields.");
       return;
     }
 
@@ -104,9 +107,10 @@ export default function InvestmentsPage() {
       setDate(new Date().toISOString().split("T")[0]);
       setShowAddModal(false);
       loadInvestments();
+      toast.success("Investment recorded successfully!");
     } catch (err) {
       console.error("Failed to save investment:", err);
-      alert("Failed to save investment. Please try again.");
+      toast.error("Failed to save investment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -199,23 +203,22 @@ export default function InvestmentsPage() {
               </div>
             )}
 
-            <div className="relative">
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value as DateFilterType)}
-                className="appearance-none bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 pl-4 pr-9 py-2.5 rounded-xl outline-none cursor-pointer hover:border-slate-350 transition-colors"
-              >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="this-week">This Week</option>
-                <option value="last-week">Last Week</option>
-                <option value="this-month">This Month</option>
-                <option value="last-month">Last Month</option>
-                <option value="custom">Custom Date Range</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
-            </div>
+            <CustomDropdown
+              value={dateFilter}
+              onChange={(val) => setDateFilter(val as DateFilterType)}
+              options={[
+                { value: "all", label: "All Dates" },
+                { value: "today", label: "Today" },
+                { value: "yesterday", label: "Yesterday" },
+                { value: "this-week", label: "This Week" },
+                { value: "last-week", label: "Last Week" },
+                { value: "this-month", label: "This Month" },
+                { value: "last-month", label: "Last Month" },
+                { value: "custom", label: "Custom Date Range" }
+              ]}
+              className="w-[170px]"
+              triggerClassName="bg-slate-50 border-slate-200"
+            />
           </div>
         </div>
 
