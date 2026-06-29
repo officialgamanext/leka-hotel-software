@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { Invoice, InvoiceItem } from "@/types";
 import { demoDb } from "./demoDb";
+import { businessService } from "./business.service";
 
 export const reportService = {
   /**
@@ -42,7 +43,20 @@ export const reportService = {
     invoiceData: Omit<Invoice, "id" | "createdAt" | "subtotal" | "taxAmount" | "total">
   ): Promise<Invoice> {
     const subtotal = invoiceData.items.reduce((sum, item) => sum + (item.amount * item.quantity), 0);
-    const taxAmount = Math.round(subtotal * 0.12 * 100) / 100; // Flat 12% tax rate
+    
+    let gstEnabled = false;
+    let gstRate = 0;
+    try {
+      const business = await businessService.getBusiness(businessId);
+      if (business) {
+        gstEnabled = business.settings?.gstEnabled ?? false;
+        gstRate = business.settings?.gstRate ?? 0;
+      }
+    } catch (err) {
+      console.error("Failed to load business GST settings for invoice creation:", err);
+    }
+
+    const taxAmount = gstEnabled ? Math.round(subtotal * (gstRate / 100) * 100) / 100 : 0;
     const total = Math.round((subtotal + taxAmount) * 100) / 100;
 
     if (!isFirebaseConfigured) {

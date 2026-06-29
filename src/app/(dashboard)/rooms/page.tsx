@@ -5,7 +5,8 @@ import { useAppStore } from "@/lib/store";
 import { roomService } from "@/services/room.service";
 import { reportService } from "@/services/report.service";
 import { guestService } from "@/services/guest.service";
-import { Room, RoomStatus } from "@/types";
+import { businessService } from "@/services/business.service";
+import { Room, RoomStatus, Business } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Search, Key, ChevronDown, User, Clock, 
@@ -109,6 +110,8 @@ export default function RoomsPage() {
   const confirm = useConfirm();
 
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [customPricePerNight, setCustomPricePerNight] = useState<number | "">("");
   const [floors, setFloors] = useState<number[]>([]);
   const [roomTypes, setRoomTypes] = useState<{ name: string; price: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,9 +143,14 @@ export default function RoomsPage() {
   const [showDetailModal, setShowDetailModal] = useState<Room | null>(null);
   const [viewQrRoom, setViewQrRoom] = useState<Room | null>(null);
 
-  // Reset payment method when details modal is shown
+  // Reset payment method and custom price when details modal is shown
   useEffect(() => {
     setPaymentMethod("");
+    if (showDetailModal) {
+      setCustomPricePerNight(showDetailModal.pricePerNight);
+    } else {
+      setCustomPricePerNight("");
+    }
   }, [showDetailModal]);
 
   // Add Floor State
@@ -218,6 +226,16 @@ export default function RoomsPage() {
 
     loadLists();
     setLoading(true);
+
+    const fetchBusiness = async () => {
+      try {
+        const biz = await businessService.getBusiness(selectedBusinessId);
+        setBusiness(biz);
+      } catch (err) {
+        console.error("Failed to load business details:", err);
+      }
+    };
+    fetchBusiness();
 
     const unsubscribe = roomService.subscribeRooms(selectedBusinessId, (updatedRooms) => {
       setRooms(updatedRooms);
@@ -462,25 +480,32 @@ export default function RoomsPage() {
   };
 
   // Check Out Submit
-  const handleCheckOut = async (room: Room, amount: number, method: string) => {
+  const handleCheckOut = async (room: Room, ratePerNight: number, method: string) => {
+    const checkInDate = new Date(room.checkInTime || new Date());
+    const checkOutDate = new Date();
+    const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
+    const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const roomCost = ratePerNight * nights;
+
+    const gstEnabled = business?.settings?.gstEnabled ?? false;
+    const gstRate = business?.settings?.gstRate ?? 0;
+    const gstAmount = gstEnabled ? Math.round(roomCost * (gstRate / 100) * 100) / 100 : 0;
+    const totalWithGst = roomCost + gstAmount;
+
     if (!await confirm({
       title: "Confirm Check-Out",
-      message: `Confirm check-out for Room ${room.roomNumber}? Total Amount: ₹${amount.toLocaleString()} via ${method}`,
+      message: `Confirm check-out for Room ${room.roomNumber}? Total Amount: ₹${totalWithGst.toLocaleString()} via ${method}`,
       variant: "info",
       confirmText: "Check Out"
     })) return;
     setSubmittingCheckOut(true);
     try {
       const checkOutDateStr = new Date().toISOString().split("T")[0];
-      const checkInDate = new Date(room.checkInTime || new Date());
-      const checkOutDate = new Date();
-      const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
-      const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
       const items = [
         {
           description: `${room.type} (Room ${room.roomNumber}) Stay - ${nights} Nights`,
-          amount: room.pricePerNight,
+          amount: ratePerNight,
           quantity: nights
         }
       ];
@@ -718,14 +743,17 @@ export default function RoomsPage() {
                 const isFemale = room.guestGender === "Female";
 
                 footerBlock = (
-                  <div className="flex items-center gap-3 p-3 bg-[#ffe4e6] border border-[#ffe0e0]/30 rounded-2xl mt-4">
+                  <div className="flex items-center gap-3 p-3 bg-[#ffe4e6] border border-[#ffe0e0]/30 rounded-2xl mt-4 font-sans">
                     <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center">
                       {isFemale ? <FemaleAvatar /> : <MaleAvatar />}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h4 className="text-[11px] font-bold text-[#9f1239] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
-                      <span className="text-[9.5px] text-[#be123c] block mt-1 truncate font-medium font-sans">
-                        Check-in: {room.checkInTime ? formatDateTime(room.checkInTime).split(" at")[0] : "N/A"}
+                      <span className="text-[9.5px] text-[#be123c] block mt-1 truncate font-medium">
+                        In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
+                      </span>
+                      <span className="text-[9.5px] text-[#be123c] block mt-0.5 truncate font-medium">
+                        Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -737,12 +765,15 @@ export default function RoomsPage() {
                 roomNumColor = "text-[#d97706]";
                 statusPill = "bg-[#fffbeb] text-[#d97706] border border-transparent";
                 footerBlock = (
-                  <div className="flex items-center gap-3 p-3.5 bg-[#fef3c7] border border-[#fde68a]/30 rounded-2xl mt-4">
+                  <div className="flex items-center gap-3 p-3 bg-[#fef3c7] border border-[#fde68a]/30 rounded-2xl mt-4 font-sans">
                     <Clock className="w-5 h-5 text-[#d97706] shrink-0" />
-                    <div>
-                      <h4 className="text-[11px] font-bold text-[#92400e] leading-none">Check-out Today</h4>
-                      <span className="text-[9.5px] text-[#b45309] block mt-1 font-medium font-sans">
-                        {room.checkOutTime ? formatDateTime(room.checkOutTime).split(" at")[0] : "Today"}
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-[11px] font-bold text-[#92400e] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
+                      <span className="text-[9.5px] text-[#b45309] block mt-1 truncate font-medium">
+                        In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
+                      </span>
+                      <span className="text-[9.5px] text-[#b45309] block mt-0.5 truncate font-medium">
+                        Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -1860,22 +1891,46 @@ export default function RoomsPage() {
                   const checkOutDate = new Date();
                   const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
                   const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                  const totalCost = nights * showDetailModal.pricePerNight;
+
+                  const activePrice = customPricePerNight !== "" ? Number(customPricePerNight) : showDetailModal.pricePerNight;
+                  const roomCost = activePrice * nights;
+                  const gstEnabled = business?.settings?.gstEnabled ?? false;
+                  const gstRate = business?.settings?.gstRate ?? 0;
+                  const gstAmount = gstEnabled ? Math.round(roomCost * (gstRate / 100) * 100) / 100 : 0;
+                  const totalCost = roomCost + gstAmount;
 
                   return (
                     <div className="space-y-4 border-t border-slate-100 pt-4 mt-4">
                       
                       {/* Price Details */}
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
-                        <div className="flex justify-between text-xs text-slate-500 font-semibold">
-                          <span>Room Cost ({nights} Day{nights > 1 ? "s" : ""}):</span>
-                          <span className="text-slate-800 font-bold">₹{showDetailModal.pricePerNight.toLocaleString()} × {nights}</span>
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-3 shadow-sm">
+                        <div className="flex justify-between items-center text-xs text-slate-550 font-semibold">
+                          <span>Room Rate per Night (₹):</span>
+                          <input
+                            type="number"
+                            required
+                            min={0}
+                            value={customPricePerNight}
+                            onChange={(e) => setCustomPricePerNight(e.target.value === "" ? "" : Number(e.target.value))}
+                            className="w-24 bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-2 py-1 rounded-lg text-xs font-bold text-right outline-none shadow-sm transition-all"
+                          />
                         </div>
-                        <div className="flex justify-between text-xs text-slate-500 font-semibold border-b border-slate-200/60 pb-2">
-                          <span>Taxes (Included):</span>
-                          <span className="text-slate-800 font-bold">₹0</span>
+                        <div className="flex justify-between text-xs text-slate-550 font-semibold pt-1 border-t border-slate-150/40">
+                          <span>Room Cost ({nights} Night{nights > 1 ? "s" : ""}):</span>
+                          <span className="text-slate-800 font-bold">₹{roomCost.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm text-slate-800 font-extrabold pt-1">
+                        {gstEnabled ? (
+                          <div className="flex justify-between text-xs text-slate-550 font-semibold">
+                            <span>GST ({gstRate}%):</span>
+                            <span className="text-slate-800 font-bold">₹{gstAmount.toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between text-xs text-slate-550 font-semibold">
+                            <span>Taxes (Included):</span>
+                            <span className="text-slate-800 font-bold">₹0</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm text-slate-800 font-extrabold pt-2 border-t border-slate-200">
                           <span>Total Amount:</span>
                           <span className="text-blue-600 text-base">₹{totalCost.toLocaleString()}</span>
                         </div>
@@ -1893,7 +1948,7 @@ export default function RoomsPage() {
                               className={`h-9 font-bold text-xs rounded-xl border transition-all active:scale-[0.97] ${
                                 paymentMethod === method
                                   ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20"
-                                  : "bg-white border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                                  : "bg-white border-slate-300 text-slate-650 hover:border-blue-400 hover:text-blue-650 hover:bg-blue-50"
                               }`}
                             >
                               {method}
@@ -1914,7 +1969,7 @@ export default function RoomsPage() {
                         <button
                           type="button"
                           disabled={!paymentMethod || submittingCheckOut}
-                          onClick={() => handleCheckOut(showDetailModal, totalCost, paymentMethod)}
+                          onClick={() => handleCheckOut(showDetailModal, activePrice, paymentMethod)}
                           className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99] flex items-center justify-center gap-1.5"
                         >
                           {submittingCheckOut ? (
