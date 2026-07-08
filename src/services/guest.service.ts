@@ -93,6 +93,7 @@ export const guestService = {
       address?: string | null;
       lastRoom?: string | null;
       lastCheckIn?: string | null;
+      gstNumber?: string | null;
     }
   ): Promise<Guest> {
     const phone = (guestData.phone || "").trim();
@@ -116,6 +117,7 @@ export const guestService = {
           address: guestData.address ?? existing.address,
           lastRoom: guestData.lastRoom ?? existing.lastRoom,
           lastCheckIn: guestData.lastCheckIn ?? existing.lastCheckIn,
+          gstNumber: guestData.gstNumber ?? existing.gstNumber,
           totalStays: (existing.totalStays || 0) + 1,
           updatedAt: new Date().toISOString(),
         };
@@ -157,6 +159,7 @@ export const guestService = {
         address: guestData.address ?? existing.address ?? null,
         lastRoom: guestData.lastRoom ?? existing.lastRoom ?? null,
         lastCheckIn: guestData.lastCheckIn ?? existing.lastCheckIn ?? null,
+        gstNumber: guestData.gstNumber ?? existing.gstNumber ?? null,
         totalStays: (existing.totalStays || 0) + 1,
         updatedAt: new Date().toISOString(),
       };

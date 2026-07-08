@@ -83,7 +83,50 @@ const MOCK_REQUESTS: ServiceRequest[] = [
   { id: "req2", roomNumber: "106", serviceName: "Room Service (Food)", issue: "1x Vegetarian Club Sandwich and a Hot Cappuccino.", status: "in-progress", createdAt: new Date().toISOString() },
 ];
 
-const MOCK_GUESTS: Guest[] = [];
+const MOCK_GUESTS: Guest[] = [
+  {
+    id: "guest-9398765432",
+    name: "Rahul Sharma",
+    phone: "9398765432",
+    phone2: "9876543210",
+    email: "rahul.sharma@example.com",
+    gender: "Male",
+    idProofType: "Aadhaar Card",
+    idProofNumber: "1234-5678-9012",
+    address: "123 Green Glen Layout, Bangalore, Karnataka",
+    gstNumber: "29AAAAA1111A1Z1",
+    totalStays: 2,
+    createdAt: "2024-05-10T10:00:00Z",
+    updatedAt: "2024-05-19T10:30:00Z"
+  },
+  {
+    id: "guest-9765432109",
+    name: "Priya Mehta",
+    phone: "9765432109",
+    email: "priya.mehta@example.com",
+    gender: "Female",
+    idProofType: "Passport",
+    idProofNumber: "A1234567",
+    address: "45 Marine Drive, Mumbai, Maharashtra",
+    totalStays: 1,
+    createdAt: "2024-05-20T12:00:00Z",
+    updatedAt: "2024-05-21T12:00:00Z"
+  },
+  {
+    id: "guest-9876543210",
+    name: "Amit Patel",
+    phone: "9876543210",
+    email: "amit.patel@example.com",
+    gender: "Male",
+    idProofType: "PAN Card",
+    idProofNumber: "ABCDE1234F",
+    address: "78 SG Road, Ahmedabad, Gujarat",
+    gstNumber: "24AAAAA2222B1Z2",
+    totalStays: 3,
+    createdAt: "2024-04-15T09:00:00Z",
+    updatedAt: "2024-05-18T11:00:00Z"
+  }
+];
 const MOCK_BOOKINGS: Booking[] = [];
 const MOCK_INVOICES: Invoice[] = [];
 const MOCK_INVESTMENTS: any[] = [];

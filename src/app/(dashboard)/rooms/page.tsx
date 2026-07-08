@@ -6,7 +6,7 @@ import { roomService } from "@/services/room.service";
 import { reportService } from "@/services/report.service";
 import { guestService } from "@/services/guest.service";
 import { businessService } from "@/services/business.service";
-import { Room, RoomStatus, Business } from "@/types";
+import { Room, RoomStatus, Business, Guest } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Search, Key, ChevronDown, User, Clock, 
@@ -104,6 +104,76 @@ const FemaleAvatar = () => (
   </svg>
 );
 
+// Helper to compute room status on a specific target date
+function getRoomStatusOnDate(room: Room, selectedDateStr: string): {
+  status: RoomStatus;
+  guestName?: string | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  additionalMembers?: any[] | null;
+  guestGender?: string | null;
+  guestPhone1?: string | null;
+  guestPhone2?: string | null;
+  guestEmail?: string | null;
+  gstNumber?: string | null;
+} {
+  if (!room.checkInTime) {
+    return {
+      status: room.status,
+      guestName: room.guestName,
+      checkInTime: room.checkInTime,
+      checkOutTime: room.checkOutTime,
+      additionalMembers: room.additionalMembers,
+      guestGender: room.guestGender,
+      guestPhone1: room.guestPhone1,
+      guestPhone2: room.guestPhone2,
+      guestEmail: room.guestEmail,
+      gstNumber: room.gstNumber,
+    };
+  }
+
+  const targetDate = new Date(selectedDateStr);
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const checkIn = new Date(room.checkInTime);
+  const checkOut = room.checkOutTime ? new Date(room.checkOutTime) : null;
+
+  const overlaps = checkIn <= dayEnd && (!checkOut || checkOut >= dayStart);
+
+  if (overlaps) {
+    const isCheckoutDay = checkOut && checkOut >= dayStart && checkOut <= dayEnd;
+    return {
+      status: isCheckoutDay ? "near-checkout" : "occupied",
+      guestName: room.guestName,
+      checkInTime: room.checkInTime,
+      checkOutTime: room.checkOutTime,
+      additionalMembers: room.additionalMembers,
+      guestGender: room.guestGender,
+      guestPhone1: room.guestPhone1,
+      guestPhone2: room.guestPhone2,
+      guestEmail: room.guestEmail,
+      gstNumber: room.gstNumber,
+    };
+  } else {
+    const baseStatus = room.status === "maintenance" ? "maintenance" : "available";
+    return {
+      status: baseStatus,
+      guestName: null,
+      checkInTime: null,
+      checkOutTime: null,
+      additionalMembers: null,
+      guestGender: null,
+      guestPhone1: null,
+      guestPhone2: null,
+      guestEmail: null,
+      gstNumber: null,
+    };
+  }
+}
+
 export default function RoomsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
   const toast = useToast();
@@ -191,6 +261,14 @@ export default function RoomsPage() {
   const [submittingCheckIn, setSubmittingCheckIn] = useState(false);
   const [submittingCheckOut, setSubmittingCheckOut] = useState(false);
 
+  // New States
+  const [gstNumber, setGstNumber] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [grouping, setGrouping] = useState<"none" | "floor" | "type">("none");
+  const [guestList, setGuestList] = useState<Guest[]>([]);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [showPhoneSuggestions, setShowPhoneSuggestions] = useState(false);
+
   // Refresh catalogs
   const loadLists = async () => {
     if (!selectedBusinessId) return;
@@ -244,6 +322,16 @@ export default function RoomsPage() {
 
     return () => unsubscribe();
   }, [selectedBusinessId]);
+
+  useEffect(() => {
+    if (showCheckInModal && selectedBusinessId) {
+      guestService.getGuests(selectedBusinessId, 200).then((res) => {
+        setGuestList(res.guests || []);
+      }).catch(err => console.error("Failed to load guests for autocomplete:", err));
+    } else {
+      setGuestList([]);
+    }
+  }, [showCheckInModal, selectedBusinessId]);
 
   // Quick Clean action toggle
   const handleQuickStatusChange = async (roomId: string, newStatus: RoomStatus) => {
@@ -423,6 +511,7 @@ export default function RoomsPage() {
         guestName: headName.trim(),
         checkInTime,
         checkOutTime,
+        gstNumber: gstNumber.trim() ? gstNumber.trim() : null,
         additionalMembers: [
           {
             name: headName.trim(),
@@ -442,6 +531,7 @@ export default function RoomsPage() {
         guestPhone2: guestPhone2.trim() ? guestPhone2.trim() : null,
         guestEmail: guestEmail.trim() ? guestEmail.trim() : null,
         guestGender: headGender,
+        gstNumber: gstNumber.trim() ? gstNumber.trim() : null,
       });
 
       await roomService.checkInRoom(selectedBusinessId, showCheckInModal.id, primaryGuestLog);
@@ -458,6 +548,7 @@ export default function RoomsPage() {
         address: headAddress.trim() || null,
         lastRoom: showCheckInModal.roomNumber,
         lastCheckIn: checkInTime,
+        gstNumber: gstNumber.trim() || null,
       });
       
       toast.success(`Guest ${headName} checked in to Room ${showCheckInModal.roomNumber}!`);
@@ -469,6 +560,7 @@ export default function RoomsPage() {
       setGuestEmail("");
       setHeadGovIdNumber("");
       setHeadAddress("");
+      setGstNumber("");
       setAdditionalMembers([]);
       setShowCheckInModal(null);
     } catch (err) {
@@ -528,7 +620,8 @@ export default function RoomsPage() {
         guestPhone1: null,
         guestPhone2: null,
         guestEmail: null,
-        guestGender: null
+        guestGender: null,
+        gstNumber: null
       });
 
       // Transition room back to available immediately
@@ -569,12 +662,15 @@ export default function RoomsPage() {
   const handleCardClick = (room: Room) => {
     if (room.status === "available" || room.status === "cleaning") {
       setShowCheckInModal(room);
-      // Auto pre-populate current timestamps
+      // Auto pre-populate current timestamps based on selectedDate
       const now = new Date();
-      const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      const filterDate = new Date(selectedDate);
+      filterDate.setHours(now.getHours(), now.getMinutes());
+      
+      const localNow = new Date(filterDate.getTime() - filterDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       setCheckInTime(localNow);
 
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrow = new Date(filterDate.getTime() + 24 * 60 * 60 * 1000);
       const localTomorrow = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       setCheckOutTime(localTomorrow);
     } else {
@@ -582,14 +678,208 @@ export default function RoomsPage() {
     }
   };
 
+  // Map rooms to their computed status for the selected date
+  const roomsOnDate = rooms.map((room) => {
+    const stateOnDate = getRoomStatusOnDate(room, selectedDate);
+    return {
+      ...room,
+      ...stateOnDate,
+    };
+  });
+
   // Filters computed
-  const filteredRooms = rooms.filter((room) => {
+  const filteredRooms = roomsOnDate.filter((room) => {
     const matchesFloor = floorFilter === "all" || room.floor === Number(floorFilter);
     const matchesType = typeFilter === "all" || room.type === typeFilter;
     const matchesStatus = statusFilter === "all" || room.status === statusFilter;
     const matchesSearch = searchQuery.trim() === "" || room.roomNumber.toLowerCase().includes(searchQuery.trim().toLowerCase());
     return matchesFloor && matchesType && matchesStatus && matchesSearch;
   });
+
+  // Helper to render room cards
+  const renderRoomCard = (room: Room) => {
+    let borderStyle = "";
+    let cardBg = "";
+    let roomNumColor = "";
+    let statusPill = "";
+    let footerBlock = null;
+
+    const statusLabels: Record<RoomStatus, string> = {
+      available: "Available",
+      occupied: "Occupied",
+      "near-checkout": "Near Checkout",
+      cleaning: "Cleaning",
+      maintenance: "Maintenance"
+    };
+
+    if (room.status === "available") {
+      borderStyle = "border-[#d1f2e0] hover:border-[#a3e6c2]";
+      cardBg = "bg-[#f8fdfa]";
+      roomNumColor = "text-[#10b981]";
+      statusPill = "bg-[#ecfdf5] text-[#10b981] border border-transparent";
+      footerBlock = (
+        <div className="flex items-center gap-3 p-3.5 bg-[#e6f7ed] border border-[#d1f2e0]/30 rounded-2xl mt-4">
+          <Key className="w-5 h-5 text-[#10b981] shrink-0" />
+          <div>
+            <h4 className="text-[11px] font-bold text-[#065f46] leading-none">Available</h4>
+            <span className="text-[9.5px] text-[#047857] block mt-1 font-medium font-sans">Ready for check-in</span>
+          </div>
+        </div>
+      );
+    } 
+    else if (room.status === "occupied") {
+      borderStyle = "border-[#ffe0e0] hover:border-[#ffc0c0]";
+      cardBg = "bg-[#fff8f8]";
+      roomNumColor = "text-[#f43f5e]";
+      statusPill = "bg-[#fff1f2] text-[#f43f5e] border border-transparent";
+      
+      const isFemale = room.guestGender === "Female";
+
+      footerBlock = (
+        <div className="flex items-center gap-3 p-3 bg-[#ffe4e6] border border-[#ffe0e0]/30 rounded-2xl mt-4 font-sans">
+          <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center">
+            {isFemale ? <FemaleAvatar /> : <MaleAvatar />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-[11px] font-bold text-[#9f1239] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
+            <span className="text-[9.5px] text-[#be123c] block mt-1 truncate font-medium">
+              In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
+            </span>
+            <span className="text-[9.5px] text-[#be123c] block mt-0.5 truncate font-medium">
+              Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
+            </span>
+          </div>
+        </div>
+      );
+    } 
+    else if (room.status === "near-checkout") {
+      borderStyle = "border-[#fef3c7] hover:border-[#fde68a]";
+      cardBg = "bg-[#fffbf2]";
+      roomNumColor = "text-[#d97706]";
+      statusPill = "bg-[#fffbeb] text-[#d97706] border border-transparent";
+      footerBlock = (
+        <div className="flex items-center gap-3 p-3 bg-[#fef3c7] border border-[#fde68a]/30 rounded-2xl mt-4 font-sans">
+          <Clock className="w-5 h-5 text-[#d97706] shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-[11px] font-bold text-[#92400e] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
+            <span className="text-[9.5px] text-[#b45309] block mt-1 truncate font-medium">
+              In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
+            </span>
+            <span className="text-[9.5px] text-[#b45309] block mt-0.5 truncate font-medium">
+              Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
+            </span>
+          </div>
+        </div>
+      );
+    } 
+    else if (room.status === "cleaning") {
+      borderStyle = "border-[#e4dffa] hover:border-[#ccc3f7]";
+      cardBg = "bg-[#f1effd]";
+      roomNumColor = "text-[#6646e2]";
+      statusPill = "bg-[#f1effd] text-[#6646e2] border border-transparent";
+      footerBlock = (
+        <div className="flex flex-col gap-2 mt-4">
+          <div className="flex items-center gap-3 p-3.5 bg-[#e4dffa] border border-[#ccc3f7]/30 rounded-2xl">
+            <Paintbrush className="w-5 h-5 text-[#6646e2] shrink-0" />
+            <div>
+              <h4 className="text-[11px] font-bold text-[#4427a3] leading-none">Under Cleaning</h4>
+              <span className="text-[9.5px] text-[#5435c4] block mt-1 font-medium font-sans">Please wait</span>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleQuickStatusChange(room.id, "available");
+            }}
+            className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm"
+          >
+            Clean Complete
+          </button>
+        </div>
+      );
+    } 
+    else if (room.status === "maintenance") {
+      borderStyle = "border-[#e2e8f0] hover:border-[#cbd5e1]";
+      cardBg = "bg-[#f8fafc]";
+      roomNumColor = "text-[#475569]";
+      statusPill = "bg-[#f1f5f9] text-[#475569] border border-transparent";
+      footerBlock = (
+        <div className="flex items-center gap-3 p-3.5 bg-[#e2e8f0] border border-[#cbd5e1]/30 rounded-2xl mt-4">
+          <Wrench className="w-5 h-5 text-[#475569] shrink-0" />
+          <div>
+            <h4 className="text-[11px] font-bold text-[#334155] leading-none">Maintenance</h4>
+            <span className="text-[9.5px] text-[#475569] block mt-1 font-medium font-sans">Not available</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={room.id}
+        onClick={() => handleCardClick(room)}
+        className={`border rounded-3xl p-6 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col justify-between relative group ${cardBg} ${borderStyle}`}
+      >
+        
+        {/* Float Card Controls (Edit / Delete Room Icons) */}
+        <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <button
+            onClick={(e) => handleEditRoomTrigger(e, room)}
+            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all animate-none"
+            title="Edit Room"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => handleDeleteRoomTrigger(e, room)}
+            className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
+            title="Delete Room"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div>
+          <div className="flex justify-between items-center pr-16">
+            <span className={`text-3xl font-extrabold tracking-tight ${roomNumColor}`}>{room.roomNumber}</span>
+            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusPill}`}>
+              {statusLabels[room.status]}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-450 mt-1.5 font-sans">
+            <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>{room.type} • ₹{room.pricePerNight.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {footerBlock}
+
+        {/* QR Code Action Footer */}
+        <div className="border-t border-slate-100/70 mt-5 pt-3.5 flex items-center justify-between text-[11px] font-bold text-slate-500">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewQrRoom(room);
+            }}
+            className="hover:text-blue-650 transition-colors flex items-center gap-1"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-blue-500" /> View QR
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadSingleQr(room.roomNumber, selectedBusinessId, room.qrCodeUrl);
+            }}
+            className="hover:text-blue-650 transition-colors flex items-center gap-1"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" /> Download QR
+          </button>
+        </div>
+
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 text-slate-800 font-sans">
@@ -673,6 +963,50 @@ export default function RoomsPage() {
             triggerClassName="bg-slate-50/50 border-slate-200"
           />
 
+          {/* Date Filter */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+              <Calendar className="w-4 h-4 text-slate-400" />
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-50/50 border border-slate-200 focus:border-blue-500 text-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs outline-none font-bold transition-all cursor-pointer"
+            />
+          </div>
+
+          {/* Grouping Toggle */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 p-0.5 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setGrouping("none")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                grouping === "none" ? "bg-white text-blue-600 shadow-sm border border-slate-150/40" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              All Grid
+            </button>
+            <button
+              type="button"
+              onClick={() => setGrouping("floor")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                grouping === "floor" ? "bg-white text-blue-600 shadow-sm border border-slate-150/40" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Floor Wise
+            </button>
+            <button
+              type="button"
+              onClick={() => setGrouping("type")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                grouping === "type" ? "bg-white text-blue-600 shadow-sm border border-slate-150/40" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Type Wise
+            </button>
+          </div>
+
         </div>
 
         <div className="relative max-w-xs w-full">
@@ -702,247 +1036,112 @@ export default function RoomsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredRooms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((room) => {
-              
-              let borderStyle = "";
-              let cardBg = "";
-              let roomNumColor = "";
-              let statusPill = "";
-              let footerBlock = null;
-
-              const statusLabels: Record<RoomStatus, string> = {
-                available: "Available",
-                occupied: "Occupied",
-                "near-checkout": "Near Checkout",
-                cleaning: "Cleaning",
-                maintenance: "Maintenance"
-              };
-
-              if (room.status === "available") {
-                borderStyle = "border-[#d1f2e0] hover:border-[#a3e6c2]";
-                cardBg = "bg-[#f8fdfa]";
-                roomNumColor = "text-[#10b981]";
-                statusPill = "bg-[#ecfdf5] text-[#10b981] border border-transparent";
-                footerBlock = (
-                  <div className="flex items-center gap-3 p-3.5 bg-[#e6f7ed] border border-[#d1f2e0]/30 rounded-2xl mt-4">
-                    <Key className="w-5 h-5 text-[#10b981] shrink-0" />
-                    <div>
-                      <h4 className="text-[11px] font-bold text-[#065f46] leading-none">Available</h4>
-                      <span className="text-[9.5px] text-[#047857] block mt-1 font-medium font-sans">Ready for check-in</span>
-                    </div>
-                  </div>
-                );
-              } 
-              else if (room.status === "occupied") {
-                borderStyle = "border-[#ffe0e0] hover:border-[#ffc0c0]";
-                cardBg = "bg-[#fff8f8]";
-                roomNumColor = "text-[#f43f5e]";
-                statusPill = "bg-[#fff1f2] text-[#f43f5e] border border-transparent";
-                
-                const isFemale = room.guestGender === "Female";
-
-                footerBlock = (
-                  <div className="flex items-center gap-3 p-3 bg-[#ffe4e6] border border-[#ffe0e0]/30 rounded-2xl mt-4 font-sans">
-                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center">
-                      {isFemale ? <FemaleAvatar /> : <MaleAvatar />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-[11px] font-bold text-[#9f1239] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
-                      <span className="text-[9.5px] text-[#be123c] block mt-1 truncate font-medium">
-                        In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
-                      </span>
-                      <span className="text-[9.5px] text-[#be123c] block mt-0.5 truncate font-medium">
-                        Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              } 
-              else if (room.status === "near-checkout") {
-                borderStyle = "border-[#fef3c7] hover:border-[#fde68a]";
-                cardBg = "bg-[#fffbf2]";
-                roomNumColor = "text-[#d97706]";
-                statusPill = "bg-[#fffbeb] text-[#d97706] border border-transparent";
-                footerBlock = (
-                  <div className="flex items-center gap-3 p-3 bg-[#fef3c7] border border-[#fde68a]/30 rounded-2xl mt-4 font-sans">
-                    <Clock className="w-5 h-5 text-[#d97706] shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-[11px] font-bold text-[#92400e] truncate leading-none">{room.guestName || "Guest Occupied"}</h4>
-                      <span className="text-[9.5px] text-[#b45309] block mt-1 truncate font-medium">
-                        In: {room.checkInTime ? formatDateTime(room.checkInTime) : "N/A"}
-                      </span>
-                      <span className="text-[9.5px] text-[#b45309] block mt-0.5 truncate font-medium">
-                        Out: {room.checkOutTime ? formatDateTime(room.checkOutTime) : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              } 
-              else if (room.status === "cleaning") {
-                borderStyle = "border-[#e4dffa] hover:border-[#ccc3f7]";
-                cardBg = "bg-[#f1effd]";
-                roomNumColor = "text-[#6646e2]";
-                statusPill = "bg-[#f1effd] text-[#6646e2] border border-transparent";
-                footerBlock = (
-                  <div className="flex flex-col gap-2 mt-4">
-                    <div className="flex items-center gap-3 p-3.5 bg-[#e4dffa] border border-[#ccc3f7]/30 rounded-2xl">
-                      <Paintbrush className="w-5 h-5 text-[#6646e2] shrink-0" />
-                      <div>
-                        <h4 className="text-[11px] font-bold text-[#4427a3] leading-none">Under Cleaning</h4>
-                        <span className="text-[9.5px] text-[#5435c4] block mt-1 font-medium font-sans">Please wait</span>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuickStatusChange(room.id, "available");
-                      }}
-                      className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm"
-                    >
-                      Clean Complete
-                    </button>
-                  </div>
-                );
-              } 
-              else if (room.status === "maintenance") {
-                borderStyle = "border-[#e2e8f0] hover:border-[#cbd5e1]";
-                cardBg = "bg-[#f8fafc]";
-                roomNumColor = "text-[#475569]";
-                statusPill = "bg-[#f1f5f9] text-[#475569] border border-transparent";
-                footerBlock = (
-                  <div className="flex items-center gap-3 p-3.5 bg-[#e2e8f0] border border-[#cbd5e1]/30 rounded-2xl mt-4">
-                    <Wrench className="w-5 h-5 text-[#475569] shrink-0" />
-                    <div>
-                      <h4 className="text-[11px] font-bold text-[#334155] leading-none">Maintenance</h4>
-                      <span className="text-[9.5px] text-[#475569] block mt-1 font-medium font-sans">Not available</span>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={room.id}
-                  onClick={() => handleCardClick(room)}
-                  className={`border rounded-3xl p-6 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col justify-between relative group ${cardBg} ${borderStyle}`}
-                >
-                  
-                  {/* Float Card Controls (Edit / Delete Room Icons) */}
-                  <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button
-                      onClick={(e) => handleEditRoomTrigger(e, room)}
-                      className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all"
-                      title="Edit Room"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteRoomTrigger(e, room)}
-                      className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
-                      title="Delete Room"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center pr-16">
-                      <span className={`text-3xl font-extrabold tracking-tight ${roomNumColor}`}>{room.roomNumber}</span>
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${statusPill}`}>
-                        {statusLabels[room.status]}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-450 mt-1.5 font-sans">
-                      <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>{room.type} • ₹{room.pricePerNight.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {footerBlock}
-
-                  {/* QR Code Action Footer */}
-                  <div className="border-t border-slate-100/70 mt-5 pt-3.5 flex items-center justify-between text-[11px] font-bold text-slate-500">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViewQrRoom(room);
-                      }}
-                      className="hover:text-blue-650 transition-colors flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-blue-500" /> View QR
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadSingleQr(room.roomNumber, selectedBusinessId, room.qrCodeUrl);
-                      }}
-                      className="hover:text-blue-650 transition-colors flex items-center gap-1"
-                    >
-                      <Download className="w-3.5 h-3.5 text-slate-400" /> Download QR
-                    </button>
-                  </div>
-
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination Footer block */}
-          {filteredRooms.length > itemsPerPage && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-slate-100 mt-6">
-              <span className="text-xs font-bold text-slate-450 uppercase tracking-wide">
-                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredRooms.length)} to{" "}
-                {Math.min(currentPage * itemsPerPage, filteredRooms.length)} of {filteredRooms.length} rooms
-              </span>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
-                >
-                  &lt;
-                </button>
-
-                {(() => {
-                  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
-                  const pages = [];
-                  for (let i = 1; i <= totalPages; i++) {
-                    if (totalPages <= 5 || i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
-                      pages.push(
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPage(i)}
-                          className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
-                            currentPage === i
-                              ? "bg-blue-600 text-white shadow-md shadow-blue-650/10"
-                              : "border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
-                          }`}
-                        >
-                          {i}
-                        </button>
-                      );
-                    } else if (pages[pages.length - 1]?.key !== "ellipsis-" + i) {
-                      pages.push(
-                        <span key={"ellipsis-" + i} className="px-1 text-xs text-slate-400 font-extrabold select-none">
-                          ...
-                        </span>
-                      );
-                    }
-                  }
-                  return pages;
-                })()}
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.ceil(filteredRooms.length / itemsPerPage)))}
-                  disabled={currentPage === Math.ceil(filteredRooms.length / itemsPerPage)}
-                  className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
-                >
-                  &gt;
-                </button>
+          {grouping === "none" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredRooms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((room) => renderRoomCard(room))}
               </div>
+
+              {/* Pagination Footer block */}
+              {filteredRooms.length > itemsPerPage && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-slate-100 mt-6">
+                  <span className="text-xs font-bold text-slate-450 uppercase tracking-wide">
+                    Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredRooms.length)} to{" "}
+                    {Math.min(currentPage * itemsPerPage, filteredRooms.length)} of {filteredRooms.length} rooms
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
+                    >
+                      &lt;
+                    </button>
+
+                    {(() => {
+                      const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+                      const pages = [];
+                      for (let i = 1; i <= totalPages; i++) {
+                        if (totalPages <= 5 || i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
+                          pages.push(
+                            <button
+                              key={i}
+                              onClick={() => setCurrentPage(i)}
+                              className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
+                                currentPage === i
+                                  ? "bg-blue-600 text-white shadow-md shadow-blue-650/10"
+                                  : "border border-slate-200 text-slate-600 hover:bg-slate-50 bg-white"
+                              }`}
+                            >
+                              {i}
+                            </button>
+                          );
+                        } else if (pages[pages.length - 1]?.key !== "ellipsis-" + i) {
+                          pages.push(
+                            <span key={"ellipsis-" + i} className="px-1 text-xs text-slate-400 font-extrabold select-none">
+                              ...
+                            </span>
+                          );
+                        }
+                      }
+                      return pages;
+                    })()}
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(p + 1, Math.ceil(filteredRooms.length / itemsPerPage)))}
+                      disabled={currentPage === Math.ceil(filteredRooms.length / itemsPerPage)}
+                      className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors font-bold text-xs"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {grouping === "floor" && (
+            <div className="space-y-10">
+              {floors.map((floorNum) => {
+                const roomsOnFloor = filteredRooms.filter((r) => r.floor === floorNum);
+                if (roomsOnFloor.length === 0) return null;
+                return (
+                  <div key={floorNum} className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide shrink-0">
+                        Floor {floorNum} <span className="text-[10px] text-slate-450 font-bold font-sans ml-1">({roomsOnFloor.length} Room{roomsOnFloor.length > 1 ? "s" : ""})</span>
+                      </h3>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {roomsOnFloor.map((room) => renderRoomCard(room))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {grouping === "type" && (
+            <div className="space-y-10">
+              {roomTypes.map((typeObj) => {
+                const roomsOfType = filteredRooms.filter((r) => r.type === typeObj.name);
+                if (roomsOfType.length === 0) return null;
+                return (
+                  <div key={typeObj.name} className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide shrink-0">
+                        {typeObj.name} <span className="text-[10px] text-slate-450 font-bold font-sans ml-1">({roomsOfType.length} Room{roomsOfType.length > 1 ? "s" : ""})</span>
+                      </h3>
+                      <div className="flex-1 h-px bg-slate-200" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {roomsOfType.map((room) => renderRoomCard(room))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1396,7 +1595,7 @@ export default function RoomsPage() {
                         required
                         value={checkInTime}
                         onChange={(e) => setCheckInTime(e.target.value)}
-                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
+                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all cursor-pointer"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1406,7 +1605,7 @@ export default function RoomsPage() {
                         required
                         value={checkOutTime}
                         onChange={(e) => setCheckOutTime(e.target.value)}
-                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
+                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all cursor-pointer"
                       />
                     </div>
                   </div>
@@ -1449,16 +1648,53 @@ export default function RoomsPage() {
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 relative">
                       <label className="text-[10px] font-bold text-slate-500 uppercase">Occupant Name</label>
                       <input
                         type="text"
                         required
                         value={headName}
-                        onChange={(e) => setHeadName(e.target.value)}
+                        onChange={(e) => {
+                          setHeadName(e.target.value);
+                          setShowNameSuggestions(true);
+                          setShowPhoneSuggestions(false);
+                        }}
+                        onFocus={() => {
+                          setShowNameSuggestions(true);
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setShowNameSuggestions(false), 200);
+                        }}
                         placeholder="e.g. Rahul Sharma"
                         className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
                       />
+
+                      {showNameSuggestions && headName.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                          {guestList.filter(g => g.name.toLowerCase().includes(headName.toLowerCase()) || (g.phone || "").includes(headName)).map((guest) => (
+                            <button
+                              key={guest.id}
+                              type="button"
+                              onMouseDown={() => {
+                                setHeadName(guest.name);
+                                setGuestPhone1(guest.phone);
+                                if (guest.phone2) setGuestPhone2(guest.phone2);
+                                if (guest.email) setGuestEmail(guest.email);
+                                if (guest.gender) setHeadGender(guest.gender);
+                                if (guest.idProofType) setHeadGovIdType(guest.idProofType);
+                                if (guest.idProofNumber) setHeadGovIdNumber(guest.idProofNumber);
+                                if (guest.address) setHeadAddress(guest.address);
+                                if (guest.gstNumber) setGstNumber(guest.gstNumber);
+                                setShowNameSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col gap-0.5 transition-colors cursor-pointer"
+                            >
+                              <span className="text-xs font-bold text-slate-800">{guest.name}</span>
+                              <span className="text-[10px] text-slate-455 font-semibold">{guest.phone} {guest.email ? `• ${guest.email}` : ""}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -1478,7 +1714,7 @@ export default function RoomsPage() {
 
                   {/* 2 Mobile Numbers & Optional Email */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 relative">
                       <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                         <Phone className="w-3.5 h-3.5 text-slate-400" /> Mobile Number 1 *
                       </label>
@@ -1486,10 +1722,47 @@ export default function RoomsPage() {
                         type="tel"
                         required
                         value={guestPhone1}
-                        onChange={(e) => setGuestPhone1(e.target.value)}
+                        onChange={(e) => {
+                          setGuestPhone1(e.target.value);
+                          setShowPhoneSuggestions(true);
+                          setShowNameSuggestions(false);
+                        }}
+                        onFocus={() => {
+                          setShowPhoneSuggestions(true);
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setShowPhoneSuggestions(false), 200);
+                        }}
                         placeholder="Primary Mobile"
                         className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
                       />
+
+                      {showPhoneSuggestions && guestPhone1.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                          {guestList.filter(g => g.name.toLowerCase().includes(guestPhone1.toLowerCase()) || (g.phone || "").includes(guestPhone1)).map((guest) => (
+                            <button
+                              key={guest.id}
+                              type="button"
+                              onMouseDown={() => {
+                                setHeadName(guest.name);
+                                setGuestPhone1(guest.phone);
+                                if (guest.phone2) setGuestPhone2(guest.phone2);
+                                if (guest.email) setGuestEmail(guest.email);
+                                if (guest.gender) setHeadGender(guest.gender);
+                                if (guest.idProofType) setHeadGovIdType(guest.idProofType);
+                                if (guest.idProofNumber) setHeadGovIdNumber(guest.idProofNumber);
+                                if (guest.address) setHeadAddress(guest.address);
+                                if (guest.gstNumber) setGstNumber(guest.gstNumber);
+                                setShowPhoneSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col gap-0.5 transition-colors cursor-pointer"
+                            >
+                              <span className="text-xs font-bold text-slate-800">{guest.name}</span>
+                              <span className="text-[10px] text-slate-455 font-semibold">{guest.phone} {guest.email ? `• ${guest.email}` : ""}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -1548,15 +1821,27 @@ export default function RoomsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Home/Contact Address</label>
-                    <textarea
-                      rows={2}
-                      value={headAddress}
-                      onChange={(e) => setHeadAddress(e.target.value)}
-                      placeholder="Street, City, State, ZIP Code"
-                      className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all resize-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Home/Contact Address</label>
+                      <textarea
+                        rows={2}
+                        value={headAddress}
+                        onChange={(e) => setHeadAddress(e.target.value)}
+                        placeholder="Street, City, State, ZIP Code"
+                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all resize-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">GST Number (Optional)</label>
+                      <input
+                        type="text"
+                        value={gstNumber}
+                        onChange={(e) => setGstNumber(e.target.value)}
+                        placeholder="e.g. 22AAAAA0000A1Z5"
+                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1837,11 +2122,25 @@ export default function RoomsPage() {
                               <span className="text-[9px] text-slate-450 block uppercase tracking-wide">Registered Home Address</span>
                               <span className="text-slate-800 font-bold block mt-0.5 leading-relaxed">{prim.address || "—"}</span>
                             </div>
+                            {showDetailModal.gstNumber && (
+                              <div className="sm:col-span-2">
+                                <span className="text-[9px] text-slate-450 block uppercase tracking-wide">GST Number</span>
+                                <span className="text-slate-850 font-extrabold block mt-0.5">{showDetailModal.gstNumber}</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })()
                     ) : (
-                      <p className="text-[10px] text-slate-400 italic">Extended primary member attributes not stored. Check-out is available.</p>
+                      <div className="space-y-3">
+                        {showDetailModal.gstNumber && (
+                          <div>
+                            <span className="text-[9px] text-slate-450 block uppercase tracking-wide">GST Number</span>
+                            <span className="text-slate-850 font-extrabold block mt-0.5">{showDetailModal.gstNumber}</span>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-slate-400 italic">Extended primary member attributes not stored. Check-out is available.</p>
+                      </div>
                     )}
                   </div>
 

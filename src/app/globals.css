@@ -61,14 +61,16 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .font-bold, .font-semibold, .font-extrabo
 }
 
 /* Input range calendar icons styles overrides */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-  opacity: 0.5;
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
   cursor: pointer;
+  filter: none;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 0.8;
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
 }
 
 /* Force pointer cursors on all interactive elements globally */

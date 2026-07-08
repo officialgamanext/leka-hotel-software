@@ -465,18 +465,37 @@ export const roomService = {
       checkInTime: string;
       checkOutTime: string;
       additionalMembers: any[];
+      gstNumber?: string | null;
     }
   ): Promise<void> {
     if (!isFirebaseConfigured) {
       const rooms = demoDb.getRooms();
       const idx = rooms.findIndex((r) => r.id === roomId);
       if (idx !== -1) {
+        const roomData = rooms[idx];
+        if (roomData.status === "occupied" && roomData.checkInTime) {
+          const existingStart = new Date(roomData.checkInTime).getTime();
+          const existingEnd = roomData.checkOutTime ? new Date(roomData.checkOutTime).getTime() : new Date(8640000000000000).getTime();
+          const newStart = new Date(checkInData.checkInTime).getTime();
+          const newEnd = new Date(checkInData.checkOutTime).getTime();
+          
+          const overlaps = existingStart < newEnd && existingEnd > newStart;
+          const isExistingActive = !roomData.checkOutTime || new Date(roomData.checkOutTime) > new Date();
+
+          if (overlaps && isExistingActive) {
+            throw new Error("Room is already occupied during this stay period.");
+          }
+        } else if (roomData.status === "occupied" && !roomData.checkInTime) {
+          throw new Error("Room is already occupied.");
+        }
+
         rooms[idx].status = "occupied";
         rooms[idx].guestName = checkInData.guestName;
         rooms[idx].checkInTime = checkInData.checkInTime;
         rooms[idx].checkOutTime = checkInData.checkOutTime;
         rooms[idx].additionalMembers = checkInData.additionalMembers;
         rooms[idx].guestGender = checkInData.additionalMembers[0]?.gender || "Male";
+        rooms[idx].gstNumber = checkInData.gstNumber || null;
         demoDb.setRooms(rooms);
 
         // Update dashboard
@@ -502,7 +521,19 @@ export const roomService = {
       }
 
       const roomData = roomSnap.data() as Room;
-      if (roomData.status === "occupied") {
+      if (roomData.status === "occupied" && roomData.checkInTime) {
+        const existingStart = new Date(roomData.checkInTime).getTime();
+        const existingEnd = roomData.checkOutTime ? new Date(roomData.checkOutTime).getTime() : new Date(8640000000000000).getTime();
+        const newStart = new Date(checkInData.checkInTime).getTime();
+        const newEnd = new Date(checkInData.checkOutTime).getTime();
+
+        const overlaps = existingStart < newEnd && existingEnd > newStart;
+        const isExistingActive = !roomData.checkOutTime || new Date(roomData.checkOutTime) > new Date();
+
+        if (overlaps && isExistingActive) {
+          throw new Error("Room is already occupied during this stay period.");
+        }
+      } else if (roomData.status === "occupied" && !roomData.checkInTime) {
         throw new Error("Room is already occupied.");
       }
 
@@ -513,7 +544,8 @@ export const roomService = {
         checkInTime: checkInData.checkInTime,
         checkOutTime: checkInData.checkOutTime,
         additionalMembers: checkInData.additionalMembers,
-        guestGender: checkInData.additionalMembers[0]?.gender || "Male"
+        guestGender: checkInData.additionalMembers[0]?.gender || "Male",
+        gstNumber: checkInData.gstNumber || null
       });
 
       // Update occupancy dashboard counts
@@ -540,6 +572,7 @@ export const roomService = {
         rooms[idx].checkOutTime = null;
         rooms[idx].additionalMembers = null;
         rooms[idx].guestGender = null;
+        rooms[idx].gstNumber = null;
         demoDb.setRooms(rooms);
 
         // Update dashboard
@@ -570,7 +603,8 @@ export const roomService = {
         checkInTime: null,
         checkOutTime: null,
         additionalMembers: null,
-        guestGender: null
+        guestGender: null,
+        gstNumber: null
       });
 
       transaction.update(dashboardSummaryRef, {

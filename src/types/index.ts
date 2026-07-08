@@ -55,6 +55,7 @@ export interface Room {
   notes?: string;
   qrCodeUrl?: string | null;
   guestGender?: string | null;
+  gstNumber?: string | null;
 }
 
 export interface Guest {
@@ -72,6 +73,7 @@ export interface Guest {
   totalStays?: number;
   createdAt: string;
   updatedAt?: string;
+  gstNumber?: string | null;
 }
 
 export type BookingStatus = "pending" | "confirmed" | "checked-in" | "checked-out" | "cancelled";
