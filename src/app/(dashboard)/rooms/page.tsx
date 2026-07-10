@@ -2366,7 +2366,7 @@ export default function RoomsPage() {
                               type="button"
                               disabled={isCheckoutDisabled}
                               onClick={() => {
-                                let methodString = paymentMethod;
+                                let methodString: string = paymentMethod;
                                 if (paymentMethod === "Split") {
                                   const parts = [];
                                   const cash = Number(splitCashAmount) || 0;
