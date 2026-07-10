@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CustomDropdown } from "@/components/ui/dropdown";
+import { CustomDatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/context/ToastContext";
 
 type DateFilterType = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom" | "all";
@@ -187,19 +188,9 @@ export default function InvestmentsPage() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
             {dateFilter === "custom" && (
               <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none"
-                />
+                <CustomDatePicker value={customStart} onChange={setCustomStart} triggerClassName="bg-slate-50 border-slate-205 py-2 h-[38px]" />
                 <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none"
-                />
+                <CustomDatePicker value={customEnd} onChange={setCustomEnd} triggerClassName="bg-slate-50 border-slate-205 py-2 h-[38px]" />
               </div>
             )}
 
@@ -337,12 +328,10 @@ export default function InvestmentsPage() {
                   <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">
                     Investment Date *
                   </label>
-                  <input
-                    type="date"
-                    required
+                  <CustomDatePicker
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-2.5 rounded-xl text-xs font-bold outline-none transition-all"
+                    onChange={setDate}
+                    triggerClassName="w-full bg-slate-50 border-slate-200 focus:border-blue-500 focus:bg-white justify-between"
                   />
                 </div>
 

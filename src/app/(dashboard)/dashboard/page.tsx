@@ -16,6 +16,7 @@ import {
   Loader2, Bell, Users, Eye, HelpCircle, Wrench, Coins, Briefcase, ChevronDown, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
+import { CustomDatePicker } from "@/components/ui/date-picker";
 
 type DateFilterType = "today" | "tomorrow" | "this-week" | "last-week" | "this-month" | "last-month" | "this-year" | "last-year" | "custom" | "all";
 
@@ -262,18 +263,16 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200/80 p-2 rounded-2xl">
           {dateFilter === "custom" && (
             <div className="flex items-center gap-2 px-2">
-              <input
-                type="date"
+              <CustomDatePicker
                 value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3 py-1.5 rounded-xl outline-none"
+                onChange={setCustomStart}
+                triggerClassName="bg-white border-slate-200 py-1.5 h-[34px]"
               />
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="date"
+              <CustomDatePicker
                 value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3 py-1.5 rounded-xl outline-none"
+                onChange={setCustomEnd}
+                triggerClassName="bg-white border-slate-200 py-1.5 h-[34px]"
               />
             </div>
           )}

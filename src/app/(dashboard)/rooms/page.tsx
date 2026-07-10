@@ -15,6 +15,7 @@ import {
   Hotel, Users, Phone, Mail, Edit3, Save, Calendar, Sparkles, Download
 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/dropdown";
+import { CustomDatePicker, CustomDateTimePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
 
@@ -973,17 +974,11 @@ export default function RoomsPage() {
           />
 
           {/* Date Filter */}
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
-              <Calendar className="w-4 h-4 text-slate-400" />
-            </span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-slate-50/50 border border-slate-200 focus:border-blue-500 text-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs outline-none font-bold transition-all cursor-pointer"
-            />
-          </div>
+          <CustomDatePicker
+            value={selectedDate}
+            onChange={setSelectedDate}
+            triggerClassName="bg-slate-50/50 border-slate-200 h-10"
+          />
 
           {/* Cleaning Quick Filter Button */}
           <button
@@ -1620,22 +1615,18 @@ export default function RoomsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Check-in Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        required
+                      <CustomDateTimePicker
                         value={checkInTime}
-                        onChange={(e) => setCheckInTime(e.target.value)}
-                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all cursor-pointer"
+                        onChange={setCheckInTime}
+                        triggerClassName="bg-slate-50/50 border-slate-200"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Check-out Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        required
+                      <CustomDateTimePicker
                         value={checkOutTime}
-                        onChange={(e) => setCheckOutTime(e.target.value)}
-                        className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all cursor-pointer"
+                        onChange={setCheckOutTime}
+                        triggerClassName="bg-slate-50/50 border-slate-200"
                       />
                     </div>
                   </div>

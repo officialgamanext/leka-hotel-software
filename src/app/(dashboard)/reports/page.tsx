@@ -12,6 +12,7 @@ import {
   Loader2, ArrowRight, CheckCircle2, ChevronDown
 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/dropdown";
+import { CustomDatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/context/ToastContext";
 import { useConfirm } from "@/context/ConfirmContext";
 
@@ -184,11 +185,9 @@ export default function ReportsPage() {
         <div className="flex flex-wrap items-center gap-3">
           {dateFilter === "custom" && (
             <div className="flex items-center gap-2">
-              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none" />
+              <CustomDatePicker value={customStart} onChange={setCustomStart} triggerClassName="bg-white border-slate-200 py-2" />
               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-white border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none" />
+              <CustomDatePicker value={customEnd} onChange={setCustomEnd} triggerClassName="bg-white border-slate-200 py-2" />
             </div>
           )}
           <CustomDropdown
