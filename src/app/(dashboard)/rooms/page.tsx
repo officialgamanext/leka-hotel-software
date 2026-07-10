@@ -268,6 +268,7 @@ export default function RoomsPage() {
   const [guestList, setGuestList] = useState<Guest[]>([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [showPhoneSuggestions, setShowPhoneSuggestions] = useState(false);
+  const [updatingRoomId, setUpdatingRoomId] = useState<string | null>(null);
 
   // Refresh catalogs
   const loadLists = async () => {
@@ -335,10 +336,13 @@ export default function RoomsPage() {
 
   // Quick Clean action toggle
   const handleQuickStatusChange = async (roomId: string, newStatus: RoomStatus) => {
+    setUpdatingRoomId(roomId);
     try {
       await roomService.updateRoomStatus(selectedBusinessId, roomId, newStatus);
     } catch (err) {
       console.error("Failed to update status:", err);
+    } finally {
+      setUpdatingRoomId(null);
     }
   };
 
@@ -791,9 +795,14 @@ export default function RoomsPage() {
               e.stopPropagation();
               handleQuickStatusChange(room.id, "available");
             }}
-            className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm"
+            disabled={updatingRoomId === room.id}
+            className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1 disabled:opacity-50"
           >
-            Clean Complete
+            {updatingRoomId === room.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              "Clean Complete"
+            )}
           </button>
         </div>
       );
@@ -975,6 +984,27 @@ export default function RoomsPage() {
               className="bg-slate-50/50 border border-slate-200 focus:border-blue-500 text-slate-800 pl-9 pr-3 py-2 rounded-xl text-xs outline-none font-bold transition-all cursor-pointer"
             />
           </div>
+
+          {/* Cleaning Quick Filter Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter(prev => prev === "cleaning" ? "all" : "cleaning");
+            }}
+            className={`h-10 px-3.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer select-none ${
+              statusFilter === "cleaning"
+                ? "bg-purple-50 text-purple-650 border-purple-250 shadow-sm"
+                : "bg-white text-slate-650 border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            <Paintbrush className="w-4 h-4 text-purple-500 shrink-0" />
+            <span>Cleaning</span>
+            {rooms.filter((r) => r.status === "cleaning").length > 0 && (
+              <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none min-w-[16px] text-center">
+                {rooms.filter((r) => r.status === "cleaning").length}
+              </span>
+            )}
+          </button>
 
           {/* Grouping Toggle */}
           <div className="flex items-center bg-slate-50 border border-slate-200 p-0.5 rounded-xl shrink-0">

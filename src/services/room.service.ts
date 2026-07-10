@@ -566,7 +566,7 @@ export const roomService = {
       const rooms = demoDb.getRooms();
       const idx = rooms.findIndex((r) => r.id === roomId);
       if (idx !== -1) {
-        rooms[idx].status = "available";
+        rooms[idx].status = "cleaning";
         rooms[idx].guestName = null;
         rooms[idx].checkInTime = null;
         rooms[idx].checkOutTime = null;
@@ -578,7 +578,8 @@ export const roomService = {
         // Update dashboard
         const dbSummary = demoDb.getDashboard();
         dbSummary.occupiedRooms = Math.max(0, dbSummary.occupiedRooms - 1);
-        dbSummary.availableRooms += 1;
+        dbSummary.dirtyRooms = (dbSummary.dirtyRooms || 0) + 1;
+        dbSummary.todayCheckOuts = (dbSummary.todayCheckOuts || 0) + 1;
         demoDb.setDashboard(dbSummary);
 
         if (typeof window !== "undefined") {
@@ -598,7 +599,7 @@ export const roomService = {
       }
 
       transaction.update(roomDocRef, {
-        status: "available",
+        status: "cleaning",
         guestName: null,
         checkInTime: null,
         checkOutTime: null,
@@ -609,7 +610,8 @@ export const roomService = {
 
       transaction.update(dashboardSummaryRef, {
         occupiedRooms: increment(-1),
-        availableRooms: increment(1),
+        dirtyRooms: increment(1),
+        todayCheckOuts: increment(1),
         lastUpdated: new Date().toISOString()
       });
     });
