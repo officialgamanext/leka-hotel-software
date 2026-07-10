@@ -28,6 +28,7 @@ export default function SettingsPage() {
   // GST states
   const [gstEnabled, setGstEnabled] = useState(false);
   const [gstRate, setGstRate] = useState<number>(18);
+  const [hotelGstNumber, setHotelGstNumber] = useState<string>("");
   const [savingGst, setSavingGst] = useState(false);
   const [gstSaved, setGstSaved] = useState(false);
 
@@ -41,6 +42,7 @@ export default function SettingsPage() {
           setBusiness(biz);
           setGstEnabled(biz.settings?.gstEnabled ?? false);
           setGstRate(biz.settings?.gstRate ?? 18);
+          setHotelGstNumber(biz.settings?.gstNumber ?? "");
         }
       } catch (err) {
         console.error("Failed to load business:", err);
@@ -55,7 +57,12 @@ export default function SettingsPage() {
     if (!selectedBusinessId) return;
     setSavingGst(true);
     try {
-      await businessService.saveGstSettings(selectedBusinessId, gstEnabled, gstEnabled ? gstRate : 0);
+      await businessService.saveGstSettings(
+        selectedBusinessId,
+        gstEnabled,
+        gstEnabled ? gstRate : 0,
+        gstEnabled ? hotelGstNumber.trim() : ""
+      );
       setGstSaved(true);
       setTimeout(() => setGstSaved(false), 3000);
     } catch (err) {
@@ -226,6 +233,19 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="space-y-5 animate-fade-in">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Hotel GSTIN (GST Number) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 22AAAAA0000A1Z5"
+                  value={hotelGstNumber}
+                  onChange={(e) => setHotelGstNumber(e.target.value)}
+                  className="max-w-xs w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-2.5 rounded-xl text-xs font-bold outline-none transition-all"
+                />
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                   GST Percentage *

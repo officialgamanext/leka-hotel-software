@@ -146,7 +146,8 @@ export const businessService = {
   async saveGstSettings(
     businessId: string,
     gstEnabled: boolean,
-    gstRate: number
+    gstRate: number,
+    hotelGstNumber?: string | null
   ): Promise<void> {
     if (!isFirebaseConfigured) {
       const list = demoDb.getBusinesses();
@@ -155,7 +156,8 @@ export const businessService = {
         list[idx].settings = {
           ...list[idx].settings,
           gstEnabled,
-          gstRate
+          gstRate,
+          gstNumber: hotelGstNumber || null
         };
         demoDb.setBusinesses(list);
       }
@@ -165,7 +167,8 @@ export const businessService = {
     const docRef = doc(db, "businesses", businessId);
     await updateDoc(docRef, {
       "settings.gstEnabled": gstEnabled,
-      "settings.gstRate": gstRate
+      "settings.gstRate": gstRate,
+      "settings.gstNumber": hotelGstNumber || null
     });
   },
 

@@ -32,6 +32,7 @@ export interface HotelSettings {
   taxRate: number;
   gstEnabled?: boolean;
   gstRate?: number;
+  gstNumber?: string | null;
 }
 
 export type RoomStatus = "available" | "occupied" | "near-checkout" | "cleaning" | "maintenance";
@@ -116,6 +117,8 @@ export interface Invoice {
   roomId?: string | null;
   roomNumber?: string | null;
   paymentMethod?: string | null;
+  gstNumber?: string | null;
+  gstRate?: number | null;
 }
 
 export interface DashboardSummary {

@@ -198,7 +198,10 @@ export default function RoomsPage() {
   const itemsPerPage = 12;
 
   // Checkout Payment Method State
-  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "UPI" | "Card" | "">("");
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "UPI" | "Card" | "Split" | "">("");
+  const [splitCashAmount, setSplitCashAmount] = useState<string>("");
+  const [splitUpiAmount, setSplitUpiAmount] = useState<string>("");
+  const [splitCardAmount, setSplitCardAmount] = useState<string>("");
 
   // Reset page when filters change
   useEffect(() => {
@@ -217,6 +220,9 @@ export default function RoomsPage() {
   // Reset payment method and custom price when details modal is shown
   useEffect(() => {
     setPaymentMethod("");
+    setSplitCashAmount("");
+    setSplitUpiAmount("");
+    setSplitCardAmount("");
     if (showDetailModal) {
       setCustomPricePerNight(showDetailModal.pricePerNight);
     } else {
@@ -617,7 +623,8 @@ export default function RoomsPage() {
         status: "paid",
         roomId: room.id,
         roomNumber: room.roomNumber,
-        paymentMethod: method
+        paymentMethod: method,
+        gstNumber: room.gstNumber || null
       });
 
       // Clear guest details on checkout
@@ -1854,12 +1861,15 @@ export default function RoomsPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">GST Number (Optional)</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">
+                        GST Number {business?.settings?.gstEnabled ? "*" : "(Optional)"}
+                      </label>
                       <input
                         type="text"
+                        required={business?.settings?.gstEnabled ?? false}
                         value={gstNumber}
                         onChange={(e) => setGstNumber(e.target.value)}
-                        placeholder="e.g. 22AAAAA0000A1Z5"
+                        placeholder={business?.settings?.gstEnabled ? "Required (e.g. 22AAAAA0000A1Z5)" : "Optional (e.g. 22AAAAA0000A1Z5)"}
                         className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3 py-2 rounded-xl text-xs outline-none transition-all"
                       />
                     </div>
@@ -2257,10 +2267,10 @@ export default function RoomsPage() {
                       </div>
 
                       {/* Payment Method Selector */}
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider block">Select Payment Mode *</span>
-                        <div className="grid grid-cols-3 gap-2">
-                          {["Cash", "UPI", "Card"].map((method) => (
+                        <div className="grid grid-cols-4 gap-2">
+                          {["Cash", "UPI", "Card", "Split"].map((method) => (
                             <button
                               key={method}
                               type="button"
@@ -2275,6 +2285,65 @@ export default function RoomsPage() {
                             </button>
                           ))}
                         </div>
+
+                        {paymentMethod === "Split" && (() => {
+                          const splitTotal = (Number(splitCashAmount) || 0) + (Number(splitUpiAmount) || 0) + (Number(splitCardAmount) || 0);
+                          return (
+                            <div className="bg-slate-50 border border-slate-150/60 p-3 rounded-2xl space-y-3">
+                              <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest block border-b border-slate-200 pb-1.5">
+                                Split Payment Allocation
+                              </span>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-450 uppercase block">Cash (₹)</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={splitCashAmount}
+                                    onChange={(e) => setSplitCashAmount(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-2 py-1.5 rounded-lg text-xs font-extrabold outline-none shadow-xs transition-all"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-450 uppercase block">UPI (₹)</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={splitUpiAmount}
+                                    onChange={(e) => setSplitUpiAmount(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-2 py-1.5 rounded-lg text-xs font-extrabold outline-none shadow-xs transition-all"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-450 uppercase block">Card (₹)</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    placeholder="0"
+                                    value={splitCardAmount}
+                                    onChange={(e) => setSplitCardAmount(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 focus:border-blue-500 text-slate-900 px-2 py-1.5 rounded-lg text-xs font-extrabold outline-none shadow-xs transition-all"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-center text-[10px] pt-1.5 border-t border-slate-200/60 font-semibold">
+                                <span className="text-slate-500">Allocated:</span>
+                                <span className={splitTotal === totalCost ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+                                  ₹{splitTotal.toLocaleString()} / ₹{totalCost.toLocaleString()}
+                                </span>
+                              </div>
+
+                              {splitTotal !== totalCost && (
+                                <p className="text-[9px] font-bold text-rose-500 leading-tight">
+                                  * Sum must exactly equal ₹{totalCost.toLocaleString()}. Diff: ₹{Math.abs(totalCost - splitTotal).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Sticky Action Footer */}
@@ -2286,21 +2355,43 @@ export default function RoomsPage() {
                         >
                           Close Log
                         </button>
-                        <button
-                          type="button"
-                          disabled={!paymentMethod || submittingCheckOut}
-                          onClick={() => handleCheckOut(showDetailModal, activePrice, paymentMethod)}
-                          className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99] flex items-center justify-center gap-1.5"
-                        >
-                          {submittingCheckOut ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Checking Out...</span>
-                            </>
-                          ) : (
-                            <span>Check Out Room</span>
-                          )}
-                        </button>
+                        {(() => {
+                          const splitTotal = (Number(splitCashAmount) || 0) + (Number(splitUpiAmount) || 0) + (Number(splitCardAmount) || 0);
+                          const isCheckoutDisabled = 
+                            !paymentMethod || 
+                            (paymentMethod === "Split" && splitTotal !== totalCost) || 
+                            submittingCheckOut;
+                          return (
+                            <button
+                              type="button"
+                              disabled={isCheckoutDisabled}
+                              onClick={() => {
+                                let methodString = paymentMethod;
+                                if (paymentMethod === "Split") {
+                                  const parts = [];
+                                  const cash = Number(splitCashAmount) || 0;
+                                  const upi = Number(splitUpiAmount) || 0;
+                                  const card = Number(splitCardAmount) || 0;
+                                  if (cash > 0) parts.push(`Cash: ₹${cash.toLocaleString()}`);
+                                  if (upi > 0) parts.push(`UPI: ₹${upi.toLocaleString()}`);
+                                  if (card > 0) parts.push(`Card: ₹${card.toLocaleString()}`);
+                                  methodString = `Split (${parts.join(", ")})`;
+                                }
+                                handleCheckOut(showDetailModal, activePrice, methodString);
+                              }}
+                              className="w-1/2 h-10 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-200 disabled:shadow-none text-white font-bold rounded-xl text-xs transition-all shadow-md hover:shadow-rose-600/10 active:scale-[0.99] flex items-center justify-center gap-1.5"
+                            >
+                              {submittingCheckOut ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Checking Out...</span>
+                                </>
+                              ) : (
+                                <span>Check Out Room</span>
+                              )}
+                            </button>
+                          );
+                        })()}
                       </div>
 
                     </div>

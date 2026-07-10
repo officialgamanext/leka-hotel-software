@@ -328,6 +328,11 @@ export default function ReportsPage() {
                       <span className="text-xs font-bold text-slate-450 uppercase tracking-widest block pt-1">
                         Tax Invoice
                       </span>
+                      {business?.settings?.gstNumber && (
+                        <p className="text-[10px] text-purple-700 font-extrabold uppercase pt-1">
+                          Hotel GSTIN: {business.settings.gstNumber}
+                        </p>
+                      )}
                       {business?.location && (
                         <p className="text-[10px] text-slate-400 leading-relaxed max-w-[240px] pt-1.5 font-medium">
                           {business.location}
@@ -357,6 +362,11 @@ export default function ReportsPage() {
                       <div className="mt-2.5 space-y-1">
                         <p className="text-sm font-extrabold text-slate-900">{selectedInvoice.guestName}</p>
                         <p className="text-slate-500 font-medium">Status: CHECKED OUT</p>
+                        {selectedInvoice.gstNumber && (
+                          <p className="text-purple-700 font-bold mt-1.5 text-[11px] bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1 inline-block">
+                            <span className="text-purple-900 font-extrabold">GSTIN:</span> {selectedInvoice.gstNumber}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -364,7 +374,15 @@ export default function ReportsPage() {
                       <div className="mt-2.5 space-y-1 text-slate-650">
                         <p><span className="font-bold text-slate-800">Room:</span> {selectedInvoice.roomNumber || "N/A"}</p>
                         <p><span className="font-bold text-slate-800">Payment:</span> {selectedInvoice.paymentMethod || "UPI"}</p>
-                        {gstEnabled && <p><span className="font-bold text-slate-800">GST:</span> {gstRate}% Applied</p>}
+                        {selectedInvoice.gstRate ? (
+                          <p className="text-emerald-700 font-bold">
+                            <span className="text-slate-800 font-bold">GST:</span> {selectedInvoice.gstRate}% Applied
+                          </p>
+                        ) : selectedInvoice.taxAmount > 0 ? (
+                          <p className="text-emerald-700 font-bold">
+                            <span className="text-slate-800 font-bold">Tax:</span> Applied
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -400,10 +418,10 @@ export default function ReportsPage() {
                         <span>Subtotal:</span>
                         <span className="text-slate-900 font-bold">₹{selectedInvoice.subtotal.toLocaleString()}</span>
                       </div>
-                      {gstEnabled ? (
+                      {selectedInvoice.taxAmount > 0 ? (
                         <div className="flex justify-between border-b border-slate-200 pb-2">
-                          <span>GST ({gstRate}%):</span>
-                          <span className="text-slate-900 font-bold">₹{getGstAmount(selectedInvoice.subtotal).toLocaleString()}</span>
+                          <span>GST ({selectedInvoice.gstRate || 0}%):</span>
+                          <span className="text-slate-900 font-bold text-emerald-650">₹{selectedInvoice.taxAmount.toLocaleString()}</span>
                         </div>
                       ) : (
                         <div className="flex justify-between border-b border-slate-200 pb-2">
@@ -413,8 +431,8 @@ export default function ReportsPage() {
                       )}
                       <div className="flex justify-between text-sm text-slate-900 font-black pt-1">
                         <span>Total Due:</span>
-                        <span className="text-blue-600 text-base">
-                          ₹{(gstEnabled ? getTotalWithGst(selectedInvoice) : selectedInvoice.total).toLocaleString()}
+                        <span className="text-blue-600 text-base font-extrabold">
+                          ₹{selectedInvoice.total.toLocaleString()}
                         </span>
                       </div>
                     </div>

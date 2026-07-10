@@ -58,6 +58,8 @@ export const reportService = {
 
     const taxAmount = gstEnabled ? Math.round(subtotal * (gstRate / 100) * 100) / 100 : 0;
     const total = Math.round((subtotal + taxAmount) * 100) / 100;
+    const gstRateVal = gstEnabled ? gstRate : null;
+    const gstNumVal = invoiceData.gstNumber || null;
 
     if (!isFirebaseConfigured) {
       const invoices = demoDb.getInvoices();
@@ -67,6 +69,8 @@ export const reportService = {
         subtotal,
         taxAmount,
         total,
+        gstRate: gstRateVal,
+        gstNumber: gstNumVal,
         createdAt: new Date().toISOString(),
       };
       invoices.push(newInvoice);
@@ -89,6 +93,8 @@ export const reportService = {
       subtotal,
       taxAmount,
       total,
+      gstRate: gstRateVal,
+      gstNumber: gstNumVal,
       createdAt: new Date().toISOString(),
     };
 
