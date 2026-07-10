@@ -18,6 +18,68 @@ import { useConfirm } from "@/context/ConfirmContext";
 
 type DateFilterType = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom" | "all";
 
+function numberToWords(num: number): string {
+  const a = [
+    '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'
+  ];
+  const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  if (num === 0) return 'zero';
+
+  // Convert to paise representation to handle decimal rounding safely
+  const parts = Math.round(num * 100).toString().padStart(3, '0');
+  const whole = parseInt(parts.slice(0, -2));
+  const paise = parseInt(parts.slice(-2));
+  
+  let word = translate(whole) + ' Rupees';
+  
+  if (paise > 0) {
+    word += ' and ' + translate(paise) + ' Paise';
+  }
+  
+  return word;
+
+  function translate(n: number): string {
+    if (n === 0) return '';
+    let str = '';
+    
+    if (n >= 10000000) {
+      str += translate(Math.floor(n / 10000000)) + ' crore ';
+      n %= 10000000;
+    }
+    
+    if (n >= 100000) {
+      str += translate(Math.floor(n / 100000)) + ' lakh ';
+      n %= 100000;
+    }
+    
+    if (n >= 1000) {
+      str += translate(Math.floor(n / 1000)) + ' thousand ';
+      n %= 1000;
+    }
+    
+    if (n >= 100) {
+      str += a[Math.floor(n / 100)] + ' hundred ';
+      n %= 100;
+    }
+    
+    if (n > 0) {
+      if (str !== '') str += 'and ';
+      if (n < 20) {
+        str += a[n];
+      } else {
+        str += b[Math.floor(n / 10)];
+        if (n % 10 > 0) {
+          str += '-' + a[n % 10];
+        }
+      }
+    }
+    
+    return str.trim();
+  }
+}
+
 function isDateInRange(dateStr: string, filter: DateFilterType, customStart?: string, customEnd?: string): boolean {
   const date = new Date(dateStr);
   date.setHours(0, 0, 0, 0);
@@ -292,167 +354,251 @@ export default function ReportsPage() {
 
       {/* A4 Bill Modal */}
       <AnimatePresence>
-        {selectedInvoice && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4 overflow-y-auto pt-10 pb-10">
-            <div className="absolute inset-0" onClick={() => setSelectedInvoice(null)} />
-            <div className="w-full max-w-[800px] bg-slate-50 p-4 border border-slate-200 rounded-3xl shadow-2xl relative z-10 space-y-4 max-h-[92vh] flex flex-col">
+        {selectedInvoice && (() => {
+          const displayGstRate = selectedInvoice.gstRate || (selectedInvoice.subtotal > 0 ? Math.round((selectedInvoice.taxAmount / selectedInvoice.subtotal) * 100) : 0);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4 overflow-y-auto pt-10 pb-10">
+              <div className="absolute inset-0" onClick={() => setSelectedInvoice(null)} />
+              <div className="w-full max-w-[800px] bg-slate-50 p-4 border border-slate-200 rounded-3xl shadow-2xl relative z-10 space-y-4 max-h-[92vh] flex flex-col">
 
-              {/* Controls */}
-              <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 text-slate-700 shrink-0 shadow-sm">
-                <span className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" /> Guest Invoice Preview
-                </span>
-                <div className="flex items-center gap-2">
-                  <button onClick={handlePrintBill}
-                    className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer">
-                    <Printer className="w-3.5 h-3.5" /> Print Bill (A4)
-                  </button>
-                  <button onClick={() => setSelectedInvoice(null)}
-                    className="p-1.5 hover:bg-slate-100 text-slate-450 hover:text-slate-800 rounded-xl transition-colors cursor-pointer">
-                    <X className="w-5 h-5" />
-                  </button>
+                {/* Controls */}
+                <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 text-slate-700 shrink-0 shadow-sm">
+                  <span className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
+                    <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" /> Guest Invoice Preview
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handlePrintBill}
+                      className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer">
+                      <Printer className="w-3.5 h-3.5" /> Print Bill (A4)
+                    </button>
+                    <button onClick={() => setSelectedInvoice(null)}
+                      className="p-1.5 hover:bg-slate-100 text-slate-450 hover:text-slate-800 rounded-xl transition-colors cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* A4 Sheet Container */}
-              <div className="overflow-y-auto flex-1 p-2 bg-white/40 border border-slate-200/50 rounded-2xl">
-                <div id="printable-invoice-sheet"
-                  className="w-full bg-white text-slate-800 p-8 sm:p-12 border border-slate-200/80 font-sans space-y-8 rounded-2xl mx-auto max-w-[700px] shadow-sm">
+                {/* A4 Sheet Container */}
+                <div className="overflow-y-auto flex-1 p-2 bg-white/40 border border-slate-200/50 rounded-2xl">
+                  <div id="printable-invoice-sheet"
+                    className="w-full bg-white text-slate-800 p-8 sm:p-12 border border-slate-350 font-sans space-y-6 rounded-2xl mx-auto max-w-[720px] shadow-sm relative overflow-hidden">
+                    
+                    {/* Header Title */}
+                    <div className="text-center border-b-2 border-slate-900 pb-4">
+                      <h1 className="text-2xl font-black tracking-widest text-slate-900 uppercase">TAX INVOICE</h1>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Computer Generated Original Receipt</p>
+                    </div>
 
-                  {/* Header */}
-                  <div className="flex justify-between items-start border-b border-slate-200 pb-6">
+                    {/* From, To, & Invoice Metadata Grid */}
+                    <div className="grid grid-cols-2 border border-slate-300 divide-x divide-slate-300 text-xs">
+                      {/* Left Column: Bill From & Bill To */}
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-wider">BILL FROM (Hotel Details)</h3>
+                          <div className="mt-1.5 space-y-1">
+                            <p className="text-sm font-extrabold text-slate-900">{business?.name || "Hotel"}</p>
+                            {business?.location && <p className="text-slate-500 font-semibold text-[10px] leading-normal">{business.location}</p>}
+                            {business?.mobileNumber && <p className="text-slate-550 text-[10px]">Ph: {business.mobileNumber}</p>}
+                            {business?.settings?.gstNumber && (
+                              <p className="text-[10.5px] text-indigo-700 font-extrabold uppercase mt-1">
+                                GSTIN: <span className="text-slate-900 font-mono font-extrabold">{business.settings.gstNumber}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-3">
+                          <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-wider">BILL TO (Guest Details)</h3>
+                          <div className="mt-1.5 space-y-1">
+                            <p className="text-sm font-extrabold text-slate-900">{selectedInvoice.guestName}</p>
+                            <p className="text-slate-500 font-semibold text-[10px]">Status: CHECKED OUT</p>
+                            {selectedInvoice.gstNumber && (
+                              <p className="text-[10.5px] text-indigo-700 font-extrabold uppercase mt-1">
+                                GSTIN: <span className="text-slate-900 font-mono font-extrabold">{selectedInvoice.gstNumber}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Invoice Details & Stay Info */}
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-wider">INVOICE DETAILS</h3>
+                          <table className="w-full text-[10.5px] mt-1.5 font-semibold text-slate-650 leading-relaxed">
+                            <tbody>
+                              <tr>
+                                <td className="py-0.5 font-bold text-slate-800 uppercase">Invoice No:</td>
+                                <td className="py-0.5 font-mono text-slate-900">{selectedInvoice.id.substring(0, 16).toUpperCase()}</td>
+                              </tr>
+                              <tr>
+                                <td className="py-0.5 font-bold text-slate-800 uppercase">Billing Date:</td>
+                                <td className="py-0.5 text-slate-900">{selectedInvoice.invoiceDate}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-3">
+                          <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-wider">STAY & TRANSACTION INFO</h3>
+                          <table className="w-full text-[10.5px] mt-1.5 font-semibold text-slate-650 leading-relaxed">
+                            <tbody>
+                              <tr>
+                                <td className="py-0.5 font-bold text-slate-800 uppercase">Room No:</td>
+                                <td className="py-0.5 text-slate-900 font-bold">{selectedInvoice.roomNumber || "N/A"}</td>
+                              </tr>
+                              <tr>
+                                <td className="py-0.5 font-bold text-slate-800 uppercase">Payment Mode:</td>
+                                <td className="py-0.5 text-slate-900 font-bold">{selectedInvoice.paymentMethod || "UPI"}</td>
+                              </tr>
+                              <tr>
+                                <td className="py-0.5 font-bold text-slate-800 uppercase">Billing Status:</td>
+                                <td className="py-0.5 text-emerald-700 font-black uppercase tracking-wide">PAID</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stay Data Table */}
                     <div className="space-y-1">
-                      <h2 className="text-lg font-black text-slate-900 uppercase tracking-wide leading-none">
-                        {business?.name || "Hotel"}
-                      </h2>
-                      <span className="text-xs font-bold text-slate-450 uppercase tracking-widest block pt-1">
-                        Tax Invoice
-                      </span>
-                      {business?.settings?.gstNumber && (
-                        <p className="text-[10px] text-purple-700 font-extrabold uppercase pt-1">
-                          Hotel GSTIN: {business.settings.gstNumber}
-                        </p>
-                      )}
-                      {business?.location && (
-                        <p className="text-[10px] text-slate-400 leading-relaxed max-w-[240px] pt-1.5 font-medium">
-                          {business.location}
-                        </p>
-                      )}
-                      {business?.mobileNumber && (
-                        <p className="text-[10px] text-slate-400 font-medium">Ph: {business.mobileNumber}</p>
-                      )}
-                    </div>
-                    <div className="text-right space-y-1">
-                      <span className="text-2xl font-black text-blue-600 uppercase tracking-widest leading-none block">INVOICE</span>
-                      <div className="text-[10px] text-slate-500 font-medium pt-2">
-                        <span className="font-bold text-slate-700 uppercase block">Invoice ID:</span>
-                        <span className="font-mono">{selectedInvoice.id}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-medium">
-                        <span className="font-bold text-slate-700 uppercase block mt-1.5">Date:</span>
-                        <span>{selectedInvoice.invoiceDate}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bill To */}
-                  <div className="grid grid-cols-2 gap-6 text-xs leading-relaxed font-semibold">
-                    <div>
-                      <h4 className="text-[10px] text-slate-450 uppercase font-black tracking-wide border-b border-slate-100 pb-1.5">Customer Details</h4>
-                      <div className="mt-2.5 space-y-1">
-                        <p className="text-sm font-extrabold text-slate-900">{selectedInvoice.guestName}</p>
-                        <p className="text-slate-500 font-medium">Status: CHECKED OUT</p>
-                        {selectedInvoice.gstNumber && (
-                          <p className="text-purple-700 font-bold mt-1.5 text-[11px] bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1 inline-block">
-                            <span className="text-purple-900 font-extrabold">GSTIN:</span> {selectedInvoice.gstNumber}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-[10px] text-slate-450 uppercase font-black tracking-wide border-b border-slate-100 pb-1.5">Stay Details</h4>
-                      <div className="mt-2.5 space-y-1 text-slate-650">
-                        <p><span className="font-bold text-slate-800">Room:</span> {selectedInvoice.roomNumber || "N/A"}</p>
-                        <p><span className="font-bold text-slate-800">Payment:</span> {selectedInvoice.paymentMethod || "UPI"}</p>
-                        {selectedInvoice.gstRate ? (
-                          <p className="text-emerald-700 font-bold">
-                            <span className="text-slate-800 font-bold">GST:</span> {selectedInvoice.gstRate}% Applied
-                          </p>
-                        ) : selectedInvoice.taxAmount > 0 ? (
-                          <p className="text-emerald-700 font-bold">
-                            <span className="text-slate-800 font-bold">Tax:</span> Applied
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Items Table */}
-                  <div className="space-y-3">
-                    <table className="w-full text-left text-xs font-semibold">
-                      <thead>
-                        <tr className="text-slate-450 border-b border-slate-200/80 text-[10px] uppercase font-bold tracking-wide">
-                          <th className="pb-2">Description</th>
-                          <th className="pb-2 text-right">Rate / Day</th>
-                          <th className="pb-2 text-center">Days</th>
-                          <th className="pb-2 text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {selectedInvoice.items.map((item, index) => (
-                          <tr key={index}>
-                            <td className="py-3 text-slate-900 font-extrabold">{item.description}</td>
-                            <td className="py-3 text-right">₹{item.amount.toLocaleString()}</td>
-                            <td className="py-3 text-center">{item.quantity}</td>
-                            <td className="py-3 text-right font-extrabold text-slate-900">₹{(item.amount * item.quantity).toLocaleString()}</td>
+                      <table className="w-full border border-slate-300 border-collapse text-xs font-semibold">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-600 border-b border-slate-300 text-[9px] uppercase font-black tracking-wider">
+                            <th className="px-3 py-2 border-r border-slate-300 text-center w-8">#</th>
+                            <th className="px-3 py-2 border-r border-slate-300 text-left">Description</th>
+                            <th className="px-3 py-2 border-r border-slate-300 text-right w-24">Rate / Day</th>
+                            <th className="px-3 py-2 border-r border-slate-300 text-center w-20">Days</th>
+                            <th className="px-3 py-2 text-right w-28">Taxable Value</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-250 text-slate-700">
+                          {selectedInvoice.items.map((item, index) => (
+                            <tr key={index}>
+                              <td className="px-3 py-2.5 border-r border-slate-200 text-center">{index + 1}</td>
+                              <td className="px-3 py-2.5 border-r border-slate-200 text-slate-900 font-extrabold">{item.description}</td>
+                              <td className="px-3 py-2.5 border-r border-slate-200 text-right">₹{item.amount.toLocaleString()}</td>
+                              <td className="px-3 py-2.5 border-r border-slate-200 text-center">{item.quantity}</td>
+                              <td className="px-3 py-2.5 text-right font-extrabold text-slate-900">₹{(item.amount * item.quantity).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
-                  {/* Totals */}
-                  <div className="border-t border-slate-200 pt-5 flex justify-end">
-                    <div className="w-full max-w-[280px] space-y-2 text-xs font-semibold text-slate-650">
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span className="text-slate-900 font-bold">₹{selectedInvoice.subtotal.toLocaleString()}</span>
+                    {/* GST Tax Summary Table */}
+                    {selectedInvoice.taxAmount > 0 && (
+                      <div className="space-y-1">
+                        <h4 className="text-[9px] font-black text-slate-450 uppercase tracking-wider">GST Tax Summary Breakdown</h4>
+                        <table className="w-full border border-slate-300 border-collapse text-[10.5px] font-semibold text-slate-700">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-300 text-[9px] uppercase font-bold text-slate-500">
+                              <th className="px-3 py-1.5 border-r border-slate-300 text-left">Tax Description</th>
+                              <th className="px-3 py-1.5 border-r border-slate-300 text-right w-28">Taxable Value</th>
+                              <th className="px-3 py-1.5 border-r border-slate-300 text-center w-20">Tax Rate (%)</th>
+                              <th className="px-3 py-1.5 text-right w-28">Tax Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 leading-normal">
+                            <tr>
+                              <td className="px-3 py-1.5 border-r border-slate-200 font-bold text-slate-650">CGST (Central GST)</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-right">₹{selectedInvoice.subtotal.toLocaleString()}</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-center">{(displayGstRate / 2).toFixed(1)}%</td>
+                              <td className="px-3 py-1.5 text-right">₹{(selectedInvoice.taxAmount / 2).toLocaleString()}</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-1.5 border-r border-slate-200 font-bold text-slate-650">SGST (State GST)</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-right">₹{selectedInvoice.subtotal.toLocaleString()}</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-center">{(displayGstRate / 2).toFixed(1)}%</td>
+                              <td className="px-3 py-1.5 text-right">₹{(selectedInvoice.taxAmount / 2).toLocaleString()}</td>
+                            </tr>
+                            <tr className="bg-slate-50/50 font-extrabold text-slate-900 border-t border-slate-300">
+                              <td className="px-3 py-1.5 border-r border-slate-200 uppercase font-black">Total GST Tax:</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-right">—</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 text-center">{displayGstRate}%</td>
+                              <td className="px-3 py-1.5 text-right text-emerald-700">₹{selectedInvoice.taxAmount.toLocaleString()}</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                      {selectedInvoice.taxAmount > 0 ? (
-                        <div className="flex justify-between border-b border-slate-200 pb-2">
-                          <span>GST ({selectedInvoice.gstRate || 0}%):</span>
-                          <span className="text-slate-900 font-bold text-emerald-650">₹{selectedInvoice.taxAmount.toLocaleString()}</span>
+                    )}
+
+                    {/* Totals Summary */}
+                    <div className="flex justify-between items-start pt-1.5">
+                      {/* Amount in words */}
+                      <div className="text-[10.5px] font-semibold text-slate-500 max-w-[340px] leading-relaxed">
+                        <span className="font-bold text-slate-800 uppercase block text-[8.5px] tracking-wide mb-0.5">Amount in Words:</span>
+                        <span className="capitalize text-slate-700 italic font-bold">{numberToWords(selectedInvoice.total)} Only</span>
+                      </div>
+
+                      {/* Bill Summary totals */}
+                      <div className="w-[260px] border border-slate-300 divide-y divide-slate-200 text-xs font-semibold text-slate-650 rounded-xl overflow-hidden bg-slate-50/40 shrink-0">
+                        <div className="flex justify-between px-3 py-2">
+                          <span>Subtotal (Taxable):</span>
+                          <span className="text-slate-900 font-bold">₹{selectedInvoice.subtotal.toLocaleString()}</span>
                         </div>
-                      ) : (
-                        <div className="flex justify-between border-b border-slate-200 pb-2">
-                          <span>Tax:</span>
-                          <span className="text-slate-900 font-bold">₹0</span>
+                        {selectedInvoice.taxAmount > 0 ? (
+                          <>
+                            <div className="flex justify-between px-3 py-1.5">
+                              <span>CGST ({(displayGstRate / 2).toFixed(1)}%):</span>
+                              <span className="text-slate-900 font-bold">₹{(selectedInvoice.taxAmount / 2).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between px-3 py-1.5">
+                              <span>SGST ({(displayGstRate / 2).toFixed(1)}%):</span>
+                              <span className="text-slate-900 font-bold">₹{(selectedInvoice.taxAmount / 2).toLocaleString()}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex justify-between px-3 py-2">
+                            <span>GST Tax (0%):</span>
+                            <span className="text-slate-900 font-bold">₹0</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between px-3 py-2.5 bg-slate-100/80 text-slate-900 font-black border-t border-slate-300 text-sm">
+                          <span>Grand Total:</span>
+                          <span className="text-blue-600 text-base font-black">₹{selectedInvoice.total.toLocaleString()}</span>
                         </div>
-                      )}
-                      <div className="flex justify-between text-sm text-slate-900 font-black pt-1">
-                        <span>Total Due:</span>
-                        <span className="text-blue-600 text-base font-extrabold">
-                          ₹{selectedInvoice.total.toLocaleString()}
-                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Footer */}
-                  <div className="border-t border-slate-200 pt-8 text-center space-y-1.5">
-                    <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">
-                      Thank you for your stay at {business?.name || "our hotel"}
-                    </p>
-                    <p className="text-[9px] text-slate-400 font-medium">
-                      This is a computer-generated invoice. Powered by GamaNext Software Solutions.
-                    </p>
-                  </div>
+                    {/* Signatory & Terms Section */}
+                    <div className="grid grid-cols-2 gap-6 pt-6 text-[10px] font-semibold text-slate-500">
+                      {/* Left: Terms and Conditions */}
+                      <div className="space-y-1.5 border border-slate-200 p-3.5 rounded-xl bg-slate-50/50">
+                        <span className="font-bold text-slate-800 uppercase block tracking-wider text-[8.5px]">Terms & Conditions</span>
+                        <ul className="list-decimal pl-4.5 space-y-0.5 leading-relaxed text-slate-500">
+                          <li>All disputes are subject to local jurisdiction only.</li>
+                          <li>Guests are requested to verify their billing details before leaving.</li>
+                          <li>This is a computer-generated tax invoice, no signature is required.</li>
+                        </ul>
+                      </div>
 
+                      {/* Right: Signatory Stamp Area */}
+                      <div className="flex flex-col items-end justify-end pb-1 pr-4">
+                        <div className="text-center space-y-1">
+                          <div className="h-12 w-32 border border-dashed border-slate-300 rounded-lg flex items-center justify-center text-[9px] text-slate-400 bg-slate-50/20">
+                            Stamp & Sign
+                          </div>
+                          <p className="font-bold text-slate-700 uppercase tracking-wider pt-1 text-[9px]">Authorized Signatory</p>
+                          <p className="text-[9px] text-slate-400 font-medium">For {business?.name || "Hotel"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom disclaimer */}
+                    <div className="border-t border-slate-200 pt-4 text-center">
+                      <p className="text-[9px] text-slate-400 font-medium tracking-wide">
+                        Thank you for your stay! Powered by GamaNext Software Solutions.
+                      </p>
+                    </div>
+
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
     </div>

@@ -270,7 +270,11 @@ export default function RoomsPage() {
 
   // New States
   const [gstNumber, setGstNumber] = useState("");
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const localDateForInit = new Date();
+  const tzOffsetForInit = localDateForInit.getTimezoneOffset() * 60000;
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date(localDateForInit.getTime() - tzOffsetForInit).toISOString().split("T")[0]
+  );
   const [grouping, setGrouping] = useState<"none" | "floor" | "type">("none");
   const [guestList, setGuestList] = useState<Guest[]>([]);
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
@@ -603,7 +607,9 @@ export default function RoomsPage() {
     })) return;
     setSubmittingCheckOut(true);
     try {
-      const checkOutDateStr = new Date().toISOString().split("T")[0];
+      const localDate = new Date();
+      const tzOffset = localDate.getTimezoneOffset() * 60000;
+      const checkOutDateStr = new Date(localDate.getTime() - tzOffset).toISOString().split("T")[0];
 
       const items = [
         {

@@ -20,13 +20,13 @@ export const reportService = {
   async getRecentInvoices(businessId: string, limitCount: number = 10): Promise<Invoice[]> {
     if (!isFirebaseConfigured) {
       const invoices = demoDb.getInvoices();
-      // Sort desc
-      invoices.sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate));
+      // Sort desc by exact checkout timestamp (createdAt)
+      invoices.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return invoices.slice(0, limitCount);
     }
 
     const invoicesRef = collection(db, `businesses/${businessId}/invoices`);
-    const q = query(invoicesRef, orderBy("invoiceDate", "desc"), limit(limitCount));
+    const q = query(invoicesRef, orderBy("createdAt", "desc"), limit(limitCount));
     const snapshot = await getDocs(q);
     const invoices: Invoice[] = [];
     snapshot.forEach((docSnap) => {
