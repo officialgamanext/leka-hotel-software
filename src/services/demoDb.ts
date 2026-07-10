@@ -130,6 +130,17 @@ const MOCK_GUESTS: Guest[] = [
 const MOCK_BOOKINGS: Booking[] = [];
 const MOCK_INVOICES: Invoice[] = [];
 const MOCK_INVESTMENTS: any[] = [];
+const MOCK_STAFF_PROFILES: Staff[] = [
+  {
+    uid: "demo-user-id",
+    name: "Admin",
+    email: "admin@lekahotel.com",
+    role: "owner",
+    businessId: "demo-hotel-id",
+    active: true,
+    createdAt: new Date().toISOString(),
+  }
+];
 
 const MOCK_DASHBOARD: DashboardSummary = {
   occupiedRooms: 3,
@@ -185,6 +196,9 @@ export const demoDb = {
   getInvoices: () => getStorageItem<Invoice[]>("demo_invoices", MOCK_INVOICES),
   setInvoices: (invoices: Invoice[]) => setStorageItem<Invoice[]>("demo_invoices", invoices),
 
+  getStaff: () => getStorageItem<Staff[]>("demo_staff", MOCK_STAFF_PROFILES),
+  setStaff: (staff: Staff[]) => setStorageItem<Staff[]>("demo_staff", staff),
+
   getInvestments: () => getStorageItem<any[]>("demo_investments", MOCK_INVESTMENTS),
   setInvestments: (investments: any[]) => setStorageItem<any[]>("demo_investments", investments),
   
@@ -205,5 +219,6 @@ export const demoDb = {
     localStorage.removeItem("demo_invoices");
     localStorage.removeItem("demo_investments");
     localStorage.removeItem("demo_dashboard");
+    localStorage.removeItem("demo_staff");
   }
 };

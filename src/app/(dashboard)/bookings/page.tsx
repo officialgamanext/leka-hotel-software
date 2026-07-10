@@ -39,6 +39,8 @@ function formatDateTime(dateTimeStr: string): string {
 
 export default function RequestsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const currentStaff = useAppStore((state) => state.currentStaff);
+  const canEdit = !currentStaff || currentStaff.role === "owner" || currentStaff.role === "admin" || (currentStaff.permissions?.bookings?.edit ?? false);
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -209,19 +211,23 @@ export default function RequestsPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => setShowAddServiceModal(true)}
-            className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4 text-slate-400" /> Add Service
-          </button>
-          
-          <button
-            onClick={() => setShowAddRequestModal(true)}
-            className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-[0.98] transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add Request
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => setShowAddServiceModal(true)}
+                className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4 text-slate-400" /> Add Service
+              </button>
+              
+              <button
+                onClick={() => setShowAddRequestModal(true)}
+                className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-[0.98] transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Request
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -296,25 +302,33 @@ export default function RequestsPage() {
                 if (req.status === "pending") {
                   borderStyle = "border-amber-100 hover:border-amber-200/80 bg-white";
                   statusBadge = "bg-amber-50 text-amber-600 border border-amber-100";
-                  actionBtn = (
+                  actionBtn = canEdit ? (
                     <button
                       onClick={() => handleStatusChange(req.id, "in-progress")}
                       className="h-8 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[10px] uppercase tracking-wide px-3.5 transition-colors flex items-center gap-1 shadow-sm"
                     >
                       <Play className="w-3.5 h-3.5" /> Start Work
                     </button>
+                  ) : (
+                    <span className="text-[10px] text-amber-600 font-extrabold flex items-center gap-1 px-2.5 uppercase tracking-wide">
+                      Pending
+                    </span>
                   );
                 } 
                 else if (req.status === "in-progress") {
                   borderStyle = "border-blue-100 hover:border-blue-200/80 bg-white";
                   statusBadge = "bg-blue-50 text-blue-600 border border-blue-100";
-                  actionBtn = (
+                  actionBtn = canEdit ? (
                     <button
                       onClick={() => handleStatusChange(req.id, "completed")}
                       className="h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] uppercase tracking-wide px-3.5 transition-colors flex items-center gap-1 shadow-sm"
                     >
                       <Check className="w-3.5 h-3.5" /> Complete
                     </button>
+                  ) : (
+                    <span className="text-[10px] text-blue-600 font-extrabold flex items-center gap-1 px-2.5 uppercase tracking-wide">
+                      In Progress
+                    </span>
                   );
                 } 
                 else if (req.status === "completed") {
@@ -357,13 +371,15 @@ export default function RequestsPage() {
                       
                       <div className="flex items-center gap-2">
                         {actionBtn}
-                        <button
-                          onClick={() => handleDeleteRequest(req.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete Request Log"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => handleDeleteRequest(req.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Delete Request Log"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -379,38 +395,40 @@ export default function RequestsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Block: Add Form */}
-          <div className="lg:col-span-5 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4">
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-                <Layers className="w-5 h-5 text-blue-600" /> Create Service Category
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Register a hotel assistance catalog label</p>
-            </div>
-
-            <form onSubmit={handleCreateService} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Laundry Service"
-                  value={newServiceName}
-                  onChange={(e) => setNewServiceName(e.target.value)}
-                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all"
-                />
+          {canEdit && (
+            <div className="lg:col-span-5 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <Layers className="w-5 h-5 text-blue-600" /> Create Service Category
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">Register a hotel assistance catalog label</p>
               </div>
-              <button
-                type="submit"
-                disabled={submittingService}
-                className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-              >
-                {submittingService ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Service Category"}
-              </button>
-            </form>
-          </div>
+
+              <form onSubmit={handleCreateService} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-extrabold uppercase text-slate-450 tracking-wider">Service Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Laundry Service"
+                    value={newServiceName}
+                    onChange={(e) => setNewServiceName(e.target.value)}
+                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-3.5 py-2.5 rounded-xl text-xs outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submittingService}
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                >
+                  {submittingService ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Service Category"}
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Right Block: Services Listing */}
-          <div className="lg:col-span-7 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4">
+          <div className={canEdit ? "lg:col-span-7 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4" : "lg:col-span-12 bg-white border border-slate-150 p-6 rounded-2xl shadow-sm space-y-4"}>
             <div>
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
                 Configured Service Options ({services.length})
@@ -423,13 +441,15 @@ export default function RequestsPage() {
                   {services.map((srv) => (
                     <div key={srv.id} className="flex justify-between items-center py-2.5 px-3.5 bg-slate-50/50 rounded-xl border border-slate-150 hover:border-slate-250">
                       <span className="text-xs font-bold text-slate-700">{srv.name}</span>
-                      <button
-                        onClick={() => handleDeleteService(srv.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete Service Category"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleDeleteService(srv.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Delete Service Category"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

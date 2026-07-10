@@ -48,6 +48,8 @@ function isDateInRange(dateStr: string, filter: DateFilterType, customStart?: st
 
 export default function InvestmentsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const currentStaff = useAppStore((state) => state.currentStaff);
+  const canEdit = !currentStaff || currentStaff.role === "owner" || currentStaff.role === "admin" || (currentStaff.permissions?.investments?.edit ?? false);
   const toast = useToast();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,12 +149,14 @@ export default function InvestmentsPage() {
           <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">Hotel Investments</h1>
           <p className="text-slate-500 text-xs mt-1.5 font-semibold">Track capital expenditure, renovations, and asset purchases.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="h-10 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/10 active:scale-[0.99] transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Add Investment
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="h-10 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md shadow-blue-500/10 active:scale-[0.99] transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Investment
+          </button>
+        )}
       </div>
 
       {/* Stats Summary & Filters row */}

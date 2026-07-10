@@ -39,6 +39,7 @@ export const useAppStore = create<AppState>()(
       name: "leka-hotel-storage",
       partialize: (state) => ({
         selectedBusinessId: state.selectedBusinessId,
+        currentStaff: state.currentStaff,
         theme: state.theme,
       }),
     }

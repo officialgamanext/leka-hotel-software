@@ -1,13 +1,33 @@
 export type UserRole = "owner" | "admin" | "receptionist" | "housekeeper";
 
+export interface PageAccess {
+  view: boolean;
+  edit: boolean;
+}
+
+export interface StaffPermissions {
+  dashboard: PageAccess;
+  rooms: PageAccess;
+  bookings: PageAccess;
+  reports: PageAccess;
+  guests: PageAccess;
+  investments: PageAccess;
+  settings: PageAccess;
+  support: PageAccess;
+  staff: PageAccess;
+}
+
 export interface Staff {
   uid: string;
   name: string;
   email: string;
+  mobileNumber?: string;
+  password?: string; // Optional: used for demo db verification
   role: UserRole;
   businessId: string;
   active: boolean;
   createdAt: string;
+  permissions?: StaffPermissions;
 }
 
 export interface Business {

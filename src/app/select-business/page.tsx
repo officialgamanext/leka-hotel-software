@@ -182,7 +182,7 @@ function SelectionConsole() {
       setCurrentStaff({
         ...currentStaff,
         businessId: biz.id,
-        role: "owner"
+        role: currentStaff.role || "owner"
       });
     }
     router.push("/dashboard");

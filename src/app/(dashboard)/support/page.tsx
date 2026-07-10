@@ -48,6 +48,8 @@ const SupportIllustration = () => (
 
 export default function SupportPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const currentStaff = useAppStore((state) => state.currentStaff);
+  const canEdit = !currentStaff || currentStaff.role === "owner" || currentStaff.role === "admin" || (currentStaff.permissions?.support?.edit ?? false);
 
   // Form States
   const [issueName, setIssueName] = useState("");
@@ -213,10 +215,11 @@ export default function SupportPage() {
                 <input
                   type="text"
                   required
+                  disabled={!canEdit}
                   value={issueName}
                   onChange={(e) => setIssueName(e.target.value)}
                   placeholder="Enter issue name"
-                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400"
+                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -234,10 +237,11 @@ export default function SupportPage() {
                   <input
                     type="tel"
                     required
+                    disabled={!canEdit}
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
                     placeholder="Enter mobile number"
-                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400"
+                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -252,10 +256,11 @@ export default function SupportPage() {
                   <input
                     type="email"
                     required
+                    disabled={!canEdit}
                     value={emailId}
                     onChange={(e) => setEmailId(e.target.value)}
                     placeholder="Enter email ID"
-                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400"
+                    className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -272,10 +277,11 @@ export default function SupportPage() {
                 <input
                   type="text"
                   required
+                  disabled={!canEdit}
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Select your business"
-                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400"
+                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-2.5 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -291,10 +297,11 @@ export default function SupportPage() {
                   required
                   rows={5}
                   maxLength={1000}
+                  disabled={!canEdit}
                   value={detailedIssue}
                   onChange={(e) => setDetailedIssue(e.target.value)}
                   placeholder="Please describe your issue in detail..."
-                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-3 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 resize-none min-h-[120px]"
+                  className="w-full bg-slate-50/50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 pl-10 pr-4 py-3 rounded-xl text-xs outline-none transition-all font-semibold placeholder-slate-400 resize-none min-h-[120px] disabled:opacity-50"
                 />
                 <span className="text-[9.5px] font-bold text-slate-400 self-end mt-1.5 uppercase">
                   {detailedIssue.length} / 1000
@@ -305,8 +312,8 @@ export default function SupportPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-450 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] select-none"
+              disabled={submitting || !canEdit}
+              className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-450 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.99] select-none disabled:opacity-50"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

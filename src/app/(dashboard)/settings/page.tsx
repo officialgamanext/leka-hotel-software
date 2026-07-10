@@ -21,6 +21,8 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 
 export default function SettingsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const currentStaff = useAppStore((state) => state.currentStaff);
+  const canEdit = !currentStaff || currentStaff.role === "owner" || currentStaff.role === "admin" || (currentStaff.permissions?.settings?.edit ?? false);
 
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,8 +207,9 @@ export default function SettingsPage() {
           {/* Toggle Switch */}
           <button
             type="button"
+            disabled={!canEdit}
             onClick={() => setGstEnabled((prev) => !prev)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all disabled:opacity-50 disabled:pointer-events-none ${
               gstEnabled
                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                 : "bg-slate-50 border-slate-200 text-slate-500"
@@ -240,9 +243,10 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   placeholder="e.g. 22AAAAA0000A1Z5"
+                  disabled={!canEdit}
                   value={hotelGstNumber}
                   onChange={(e) => setHotelGstNumber(e.target.value)}
-                  className="max-w-xs w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-2.5 rounded-xl text-xs font-bold outline-none transition-all"
+                  className="max-w-xs w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-2.5 rounded-xl text-xs font-bold outline-none transition-all disabled:opacity-50"
                 />
               </div>
 
@@ -257,9 +261,10 @@ export default function SettingsPage() {
                       min={0}
                       max={100}
                       step={0.5}
+                      disabled={!canEdit}
                       value={gstRate}
                       onChange={(e) => setGstRate(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-3 rounded-xl text-sm font-extrabold outline-none transition-all text-center"
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white text-slate-900 px-4 py-3 rounded-xl text-sm font-extrabold outline-none transition-all text-center disabled:opacity-50"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 font-bold text-sm pointer-events-none">
                       %
@@ -270,11 +275,12 @@ export default function SettingsPage() {
                     <button
                       key={preset}
                       type="button"
+                      disabled={!canEdit}
                       onClick={() => setGstRate(preset)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all disabled:opacity-50 ${
                         gstRate === preset
                           ? "bg-blue-600 border-blue-600 text-white"
-                          : "bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600"
+                          : "bg-white border-slate-200 text-slate-650 hover:border-blue-400 hover:text-blue-600"
                       }`}
                     >
                       {preset}%
@@ -312,7 +318,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleSaveGst}
-              disabled={savingGst}
+              disabled={savingGst || !canEdit}
               className="h-10 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm active:scale-[0.99]"
             >
               {savingGst ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}

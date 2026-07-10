@@ -16,6 +16,7 @@ import {
   collection
 } from "firebase/firestore";
 import { Staff } from "@/types";
+import { demoDb } from "./demoDb";
 
 // Mock memory store for demo mode
 const DEMO_STAFF_PROFILES: Staff[] = [
@@ -57,7 +58,28 @@ export const authService = {
 
         return demoUser;
       } else {
-        throw new Error("Invalid credentials. Use admin@lekahotel.com / admin123 for demo mode.");
+        // Allow mock staff member logins in demo mode
+        const allStaff = demoDb.getStaff();
+        const matchedStaff = allStaff.find((s) => s.email === email && s.password === pass && s.active);
+        
+        if (matchedStaff) {
+          const demoUser = {
+            uid: matchedStaff.uid,
+            email: matchedStaff.email,
+            displayName: matchedStaff.name,
+            getIdToken: async () => `demo-id-token-${matchedStaff.uid}`,
+          };
+
+          await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken: `demo-id-token-${matchedStaff.uid}` }),
+          });
+
+          return demoUser;
+        }
+
+        throw new Error("Invalid credentials. Use admin@lekahotel.com / admin123 or registered staff email & password.");
       }
     }
 
@@ -124,7 +146,15 @@ export const authService = {
    */
   async getUserStaffProfiles(email: string): Promise<Staff[]> {
     if (!isFirebaseConfigured) {
-      return DEMO_STAFF_PROFILES.filter((s) => s.email === email);
+      const allStaff = demoDb.getStaff();
+      // Combine DEMO_STAFF_PROFILES and demoDb.getStaff()
+      const combined = [...DEMO_STAFF_PROFILES];
+      allStaff.forEach((s) => {
+        if (!combined.some((c) => c.uid === s.uid)) {
+          combined.push(s);
+        }
+      });
+      return combined.filter((s) => s.email === email && s.active);
     }
 
     const staffQuery = query(

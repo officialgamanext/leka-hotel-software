@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -60,7 +60,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full bg-slate-950 text-slate-100 font-sans">
+      <body className="min-h-full bg-slate-950 text-slate-100 font-sans" suppressHydrationWarning>
         <QueryProvider>
           <ToastProvider>
             <ConfirmProvider>

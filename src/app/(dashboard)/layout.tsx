@@ -14,6 +14,30 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+function checkPagePermission(pathname: string, staff: any): { view: boolean; edit: boolean } {
+  if (!staff) {
+    return { view: true, edit: true };
+  }
+  if (staff.role === "owner" || staff.role === "admin") {
+    return { view: true, edit: true };
+  }
+  const permissions = staff.permissions;
+  if (!permissions) {
+    return { view: false, edit: false };
+  }
+  if (pathname.startsWith("/dashboard")) return permissions.dashboard || { view: false, edit: false };
+  if (pathname.startsWith("/rooms")) return permissions.rooms || { view: false, edit: false };
+  if (pathname.startsWith("/reports")) return permissions.reports || { view: false, edit: false };
+  if (pathname.startsWith("/bookings")) return permissions.bookings || { view: false, edit: false };
+  if (pathname.startsWith("/guests")) return permissions.guests || { view: false, edit: false };
+  if (pathname.startsWith("/investments")) return permissions.investments || { view: false, edit: false };
+  if (pathname.startsWith("/settings")) return permissions.settings || { view: false, edit: false };
+  if (pathname.startsWith("/support")) return permissions.support || { view: false, edit: false };
+  if (pathname.startsWith("/staff")) return permissions.staff || { view: false, edit: false };
+
+  return { view: true, edit: true };
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -98,7 +122,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Investments", href: "/investments", icon: Briefcase },
     { label: "Settings", href: "/settings", icon: Settings },
     { label: "Support", href: "/support", icon: HelpCircle },
+    { label: "Staff", href: "/staff", icon: ShieldAlert },
   ];
+
+  const permissions = checkPagePermission(pathname, currentStaff);
+
+  const visibleMenuItems = menuItems.filter((item) => {
+    const perm = checkPagePermission(item.href, currentStaff);
+    return perm.view;
+  });
 
   if (!selectedBusinessId || loading) {
     return (
@@ -160,7 +192,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ref={menuRef}
             className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth py-2 px-1"
           >
-            {menuItems.map((item, idx) => {
+            {visibleMenuItems.map((item, idx) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
 
@@ -216,7 +248,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="hidden sm:block leading-tight">
                 <p className="text-xs font-bold text-slate-800">{currentStaff?.name || "Admin"}</p>
-                <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide">Hotel Admin</p>
+                <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide">
+                  {currentStaff?.role === "owner" ? "Hotel Owner" : currentStaff?.role === "admin" ? "Hotel Admin" : "Hotel Staff"}
+                </p>
               </div>
               <ChevronDown className="w-4 h-4 text-slate-400" />
             </button>
@@ -259,7 +293,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* MOBILE SCROLLABLE NAV TAB STRIP (shows only on smaller devices below lg layout breakpoint) */}
       <nav className="lg:hidden flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth bg-white border-b border-slate-100 py-3 px-4 shadow-sm shrink-0">
-        {menuItems.map((item, idx) => {
+        {visibleMenuItems.map((item, idx) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
           return (
@@ -280,7 +314,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* MAIN VIEWPORT */}
       <main className="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto max-w-7xl w-full mx-auto">
-        {children}
+        {permissions.view ? (
+          children
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-white border border-slate-200 rounded-3xl shadow-sm min-h-[50vh]">
+            <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4 border border-rose-100 shadow-xs">
+              <ShieldAlert className="w-8 h-8 animate-bounce" />
+            </div>
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Access Restricted</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-2 leading-relaxed font-semibold">
+              You do not have the required permissions to view the <strong>{pathname.replace("/", "").toUpperCase()}</strong> page.
+            </p>
+            <p className="text-[10px] text-slate-450 mt-1 italic">
+              Please contact your hotel administrator to request page access.
+            </p>
+            <button
+              onClick={() => router.push(currentStaff?.permissions?.dashboard?.view ? "/dashboard" : "/select-business")}
+              className="mt-6 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-705 text-white text-xs font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer"
+            >
+              Return Home
+            </button>
+          </div>
+        )}
       </main>
 
     </div>

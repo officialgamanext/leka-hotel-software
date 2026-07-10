@@ -177,6 +177,8 @@ function getRoomStatusOnDate(room: Room, selectedDateStr: string): {
 
 export default function RoomsPage() {
   const selectedBusinessId = useAppStore((state) => state.selectedBusinessId) || "";
+  const currentStaff = useAppStore((state) => state.currentStaff);
+  const canEdit = !currentStaff || currentStaff.role === "owner" || currentStaff.role === "admin" || (currentStaff.permissions?.rooms?.edit ?? false);
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -679,6 +681,10 @@ export default function RoomsPage() {
   // Card Dispatcher
   const handleCardClick = (room: Room) => {
     if (room.status === "available" || room.status === "cleaning") {
+      if (!canEdit) {
+        toast.error("Access Denied: You do not have permissions to perform check-ins.");
+        return;
+      }
       setShowCheckInModal(room);
       // Auto pre-populate current timestamps based on selectedDate
       const now = new Date();
@@ -809,7 +815,7 @@ export default function RoomsPage() {
               e.stopPropagation();
               handleQuickStatusChange(room.id, "available");
             }}
-            disabled={updatingRoomId === room.id}
+            disabled={updatingRoomId === room.id || !canEdit}
             className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-[9px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1 disabled:opacity-50"
           >
             {updatingRoomId === room.id ? (
@@ -845,22 +851,24 @@ export default function RoomsPage() {
       >
         
         {/* Float Card Controls (Edit / Delete Room Icons) */}
-        <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          <button
-            onClick={(e) => handleEditRoomTrigger(e, room)}
-            className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all animate-none"
-            title="Edit Room"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={(e) => handleDeleteRoomTrigger(e, room)}
-            className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
-            title="Delete Room"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {canEdit && (
+          <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <button
+              onClick={(e) => handleEditRoomTrigger(e, room)}
+              className="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg shadow-sm transition-all animate-none"
+              title="Edit Room"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => handleDeleteRoomTrigger(e, room)}
+              className="p-1.5 bg-white border border-slate-200 text-slate-550 hover:text-rose-600 hover:border-rose-200 rounded-lg shadow-sm transition-all"
+              title="Delete Room"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         <div>
           <div className="flex justify-between items-center pr-16">
@@ -915,19 +923,23 @@ export default function RoomsPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => setShowAddFloorModal(true)}
-            className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
-          >
-            <Layers className="w-4 h-4 text-slate-400" /> Manage Floors
-          </button>
-          
-          <button
-            onClick={() => setShowAddTypeModal(true)}
-            className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
-          >
-            <CreditCard className="w-4 h-4 text-slate-400" /> Manage Room Types
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => setShowAddFloorModal(true)}
+                className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Layers className="w-4 h-4 text-slate-400" /> Manage Floors
+              </button>
+              
+              <button
+                onClick={() => setShowAddTypeModal(true)}
+                className="h-10 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <CreditCard className="w-4 h-4 text-slate-400" /> Manage Room Types
+              </button>
+            </>
+          )}
 
           <button
             onClick={downloadAllQrs}
@@ -937,12 +949,14 @@ export default function RoomsPage() {
             <Download className="w-4 h-4 text-slate-400" /> Download All QR Codes
           </button>
           
-          <button
-            onClick={() => setShowAddRoomModal(true)}
-            className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-[0.98] transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add Room
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowAddRoomModal(true)}
+              className="h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-[0.98] transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Room
+            </button>
+          )}
         </div>
       </div>
 
@@ -2370,7 +2384,7 @@ export default function RoomsPage() {
                           return (
                             <button
                               type="button"
-                              disabled={isCheckoutDisabled}
+                              disabled={isCheckoutDisabled || !canEdit}
                               onClick={() => {
                                 let methodString: string = paymentMethod;
                                 if (paymentMethod === "Split") {
